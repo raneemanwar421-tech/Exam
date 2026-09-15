@@ -106,9 +106,10 @@
     background:#dfe6ee; border-radius:10px; padding:18px 10px; overflow-x:auto;
   }
   .page{
-    width:210mm; height:297mm; margin:0 auto 22px; background:#fff;
+    width:210mm; height:297mm; min-height:297mm; margin:0 auto 22px; background:#fff;
     border:7px double #1f5c99; padding:9mm 10mm 20mm; position:relative;
     font-size:12.5px; line-height:1.55; direction:rtl; overflow:hidden;
+    page-break-after:always; break-after:page; page-break-inside:avoid; break-inside:avoid;
     font-family:"Cairo","Tahoma",sans-serif;
   }
   .page::before{
@@ -116,7 +117,8 @@
     pointer-events:none;
   }
   .page-content{
-    position:relative; z-index:1; transform-origin:top center; will-change:transform;
+    position:relative; z-index:1; transform-origin:top center; transform:scale(var(--page-scale, 1));
+    zoom:var(--page-scale, 1); will-change:transform;
   }
   .page-footer{
     position:absolute; left:10mm; right:10mm; bottom:6mm; z-index:2;
@@ -181,8 +183,8 @@
   .export-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;}
 
   @media (max-width:720px){
-    .page{width:100%; height:auto; overflow:visible; padding:14px; font-size:11.5px;}
-    .page-content{transform:none !important;}
+    .page{width:100%; height:auto; min-height:0; overflow:visible; padding:14px; font-size:11.5px;}
+    .page-content{transform:none !important; zoom:1 !important;}
     .page-footer{position:static; margin-top:14px; left:auto; right:auto; bottom:auto;}
     .sheet-outer{padding:10px 4px;}
   }
@@ -197,8 +199,10 @@
     .sheet-outer{background:#fff; padding:0;}
     .page{
       box-shadow:none; margin:0; width:auto; height:297mm;
-      page-break-after:always; page-break-inside:avoid; border-width:4px;
+      min-height:297mm; page-break-after:always; page-break-inside:avoid;
+      break-after:page; break-inside:avoid; border-width:4px; overflow:hidden;
     }
+    .page-content{transform:none !important; zoom:var(--page-scale, 1) !important;}
     .block .controls{display:none !important;}
     .block:hover{outline:none;}
   }
@@ -318,6 +322,17 @@
 
   function handleFile(file){
     if(!file) return;
+    const allowed = ['image/jpeg','image/png','image/webp','image/gif'];
+    if(!allowed.includes(file.type)){
+      $('#errorBox').textContent = 'صيغة الصورة غير مدعومة. استخدم JPG أو PNG أو WEBP.';
+      $('#errorBox').style.display = 'block';
+      return;
+    }
+    if(file.size > 10 * 1024 * 1024){
+      $('#errorBox').textContent = 'حجم الصورة كبير. اختر صورة أقل من 10 ميغابايت لتعمل بثبات على Android.';
+      $('#errorBox').style.display = 'block';
+      return;
+    }
     currentFile = file;
     const url = URL.createObjectURL(file);
     $('#previewImg').src = url;
@@ -396,7 +411,7 @@
       console.error(err);
       const box = $('#errorBox');
       box.style.display = 'block';
-      box.innerHTML =
+      box.textContent =
         'تعذّر تحليل الصورة تلقائياً. ' +
         (err && err.message ? '(' + err.message + ') ' : '') +
         'تأكد أن الصورة واضحة وأن الاتصال بالإنترنت متوفر، ثم أعد المحاولة. ' +
@@ -551,13 +566,17 @@
     const content = pageEl.querySelector('.page-content');
     const footer = pageEl.querySelector('.page-footer');
     if(!content || !footer) return;
+    content.style.setProperty('--page-scale', '1');
     content.style.transform = 'none';
-    const available = footer.offsetTop - content.offsetTop - 6;
-    const natural = content.scrollHeight;
-    if(natural <= 0 || available <= 0) return;
-    let scale = Math.min(1, available / natural);
-    scale = Math.max(scale, 0.7); // حد أدنى حتى يبقى النص واضح للقراءة
+    content.style.zoom = '1';
+    const available = Math.max(1, footer.offsetTop - content.offsetTop - 6);
+    const natural = Math.max(1, content.scrollHeight);
+    // Calculate one scale for the complete content. Do not impose a minimum:
+    // a small exam page must remain one physical A4 page rather than overflow.
+    const scale = Math.min(1, available / natural);
+    content.style.setProperty('--page-scale', String(scale));
     content.style.transform = scale < 1 ? `scale(${scale})` : 'none';
+    content.style.zoom = '1';
   }
 
   function renderBlock(b, pIdx, bIdx){
@@ -730,23 +749,37 @@
   $('#btnExportWord').addEventListener('click', exportWord);
 
   function exportWord(){
-    const sheetHtml = $('#sheet').innerHTML.replace(/<div class="controls no-print">[\s\S]*?<\/div>/g, '');
+    // Clone the rendered sheet so controls and editor-only markers never reach Word.
+    const clone = $('#sheet').cloneNode(true);
+    clone.querySelectorAll('.controls, .page-break-marker').forEach(el => el.remove());
+    clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    clone.querySelectorAll('.page-content').forEach(content => {
+      const scale = content.style.getPropertyValue('--page-scale') || '1';
+      content.style.transform = 'none';
+      content.style.zoom = scale;
+      content.style.setProperty('--page-scale', scale);
+    });
+    const sheetHtml = clone.innerHTML;
     const styleForWord = `
-      body{font-family:Cairo, Arial, Tahoma, sans-serif;}
-      .page{width:210mm;min-height:297mm;border:7px double #1f5c99;padding:9mm 10mm 20mm;margin:0 0 20px;font-size:12.5px;line-height:1.55;position:relative;page-break-after:always;}
-      .page-content{transform:none !important;}
-      .page-footer{margin-top:16px;text-align:center;font-weight:800;font-size:.95rem;color:#a3231f;border-top:1px dashed #c9a227;padding-top:5px;}
+      @page{size:A4 portrait;margin:0;}
+      html,body{margin:0;padding:0;background:#fff;font-family:Arial,Tahoma,sans-serif;}
+      body{direction:rtl;}
+      .page{box-sizing:border-box;width:210mm;height:297mm;min-height:297mm;overflow:hidden;border:7px double #1f5c99;padding:9mm 10mm 20mm;margin:0;position:relative;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;font-size:12.5px;line-height:1.55;direction:rtl;}
+      .page:last-child{page-break-after:auto;break-after:auto;}
+      .page-content{position:relative;z-index:1;transform-origin:top center;transform:none;}
+      .page-footer{position:absolute;left:10mm;right:10mm;bottom:6mm;text-align:center;font-weight:800;font-size:.95rem;color:#a3231f;border-top:1px dashed #c9a227;padding-top:5px;}
       .title-box{border:3px double #a3231f;text-align:center;padding:8px 10px;font-weight:800;font-size:1.15rem;margin-bottom:12px;}
       .title-box .badge{display:inline-block;width:20px;height:20px;border-radius:50%;background:#ffe066;font-size:.8rem;font-weight:800;margin-inline-start:6px;text-align:center;}
+      .block{break-inside:avoid;page-break-inside:avoid;}
       .b-section{color:#a3231f;font-weight:800;font-size:.92rem;margin:10px 0 5px;}
       .b-subhead{color:#1f5c99;font-weight:700;font-size:.88rem;margin:2px 0 8px;}
       .b-paragraph{margin:5px 0;}
       .b-source{font-weight:700;font-size:.85rem;margin:4px 0 10px;}
-      .b-question{display:flex;justify-content:space-between;gap:10px;margin:4px 0;}
-      .b-options{display:flex;gap:18px;flex-wrap:wrap;padding-inline-start:26px;margin:2px 0 9px;}
+      .b-question{display:flex;justify-content:space-between;gap:10px;margin:4px 0;break-inside:avoid;page-break-inside:avoid;}
+      .b-options{display:flex;gap:18px;flex-wrap:wrap;padding-inline-start:26px;margin:2px 0 9px;break-inside:avoid;page-break-inside:avoid;}
       .b-options .o0{color:#000;font-weight:700;} .b-options .o1{color:#1f5c99;font-weight:700;}
       .b-options .o2{color:#1a7a3c;font-weight:700;} .b-options .o3{color:#8b2c6e;font-weight:700;}
-      table.b-table{width:100%;border-collapse:collapse;margin:8px 0;}
+      table.b-table{width:100%;border-collapse:collapse;margin:8px 0;break-inside:avoid;page-break-inside:avoid;}
       table.b-table td{border:1px solid #000;padding:5px 8px;font-size:.85rem;}
       .b-closing{text-align:center;border-top:1px dashed #000;padding-top:8px;margin-top:14px;color:#a3231f;font-weight:700;}
       .qpts{font-weight:700;white-space:nowrap;}
@@ -756,7 +789,7 @@
     <style>${styleForWord}</style></head>
     <body dir="rtl">${sheetHtml}</body></html>`;
 
-    const blob = new Blob(['\ufeff', html], {type:'application/msword'});
+    const blob = new Blob(['\ufeff', html], {type:'application/msword;charset=utf-8'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
