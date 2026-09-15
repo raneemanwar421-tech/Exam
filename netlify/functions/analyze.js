@@ -21,7 +21,14 @@ const PROMPT = [
   "Rules: copy every piece of text EXACTLY as written (same language, punctuation, quotes «»), no translation, no summarizing, no adding anything not visible on the page. Keep JSON compact (minimal whitespace)."
 ].join("\n");
 
-const MODEL = "gemini-3.5-flash-lite"; // الموديل الحالي الموصى به من جوجل (بديل 2.5-flash-lite القديم)
+// قائمة نماذج تُجرَّب بالترتيب: إذا تقاعد نموذج أو تغيّر اسمه (404) أو تجاوز
+// الحصة المجانية (429) ينتقل تلقائياً للنموذج التالي بدل فشل التحليل كاملاً.
+const MODELS = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.1-flash-lite-preview",
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-flash"
+];
 
 exports.handler = async function (event) {
   try {
@@ -54,51 +61,69 @@ exports.handler = async function (event) {
       return json({ error: "مفتاح Gemini API غير مضبوط على Netlify (GEMINI_API_KEY)." }, 500);
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
-
     // Netlify's synchronous functions are killed around the 10s mark on the
     // free tier; abort a bit earlier so the client gets a clear, friendly
     // error instead of a bare network failure / hung "جارٍ التحليل…" state.
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 9000);
+    // نمنح كل نموذج مهلة قصيرة، وننتقل للنموذج التالي عند الأعطاب المؤقتة.
+    const RETRYABLE = new Set([404, 429, 500, 502, 503, 504]);
+    let geminiRes = null;
+    let data = null;
+    let lastMessage = "خدمة التحليل غير متاحة حالياً.";
 
-    let geminiRes;
-    try {
-      geminiRes = await fetch(url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-goog-api-key": GEMINI_API_KEY
-        },
-        signal: controller.signal,
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { inline_data: { mime_type: safeMediaType, data: image } },
-                { text: PROMPT }
-              ]
-            }
-          ],
-          // Ask Gemini to return raw JSON directly instead of relying on
-          // the client stripping ```json fences — fewer parse failures.
-          generationConfig: { responseMimeType: "application/json" }
-        })
-      });
-    } catch (fetchErr) {
-      clearTimeout(timeout);
-      if (fetchErr && fetchErr.name === "AbortError") {
-        return json({ error: "استغرق تحليل الصورة وقتاً طويلاً. جرّب صورة أوضح أو أصغر حجماً." }, 504);
+    for (const model of MODELS) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8500);
+      try {
+        geminiRes = await fetch(url, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-goog-api-key": GEMINI_API_KEY
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { inline_data: { mime_type: safeMediaType, data: image } },
+                  { text: PROMPT }
+                ]
+              }
+            ],
+            // Ask Gemini to return raw JSON directly instead of relying on
+            // the client stripping ```json fences — fewer parse failures.
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
+      } catch (fetchErr) {
+        clearTimeout(timeout);
+        if (fetchErr && fetchErr.name === "AbortError") {
+          lastMessage = "استغرق تحليل الصورة وقتاً طويلاً. جرّب صورة أوضح أو أصغر حجماً.";
+          continue; // جرّب النموذج التالي
+        }
+        throw fetchErr;
       }
-      throw fetchErr;
+      clearTimeout(timeout);
+
+      try {
+        data = await geminiRes.json();
+      } catch (_) {
+        data = null;
+      }
+
+      if (geminiRes.ok) break; // نجح التحليل بهذا النموذج
+
+      lastMessage = (data && data.error && data.error.message) || ("HTTP " + geminiRes.status);
+      if (!RETRYABLE.has(geminiRes.status)) {
+        // خطأ غير قابل للتجاوز (مثلاً مفتاح API خاطئ) — لا فائدة من تجربة غيره
+        return json({ error: lastMessage }, geminiRes.status);
+      }
+      data = null; // جرّب النموذج التالي في القائمة
     }
-    clearTimeout(timeout);
 
-    const data = await geminiRes.json();
-
-    if (!geminiRes.ok) {
-      const message = (data && data.error && data.error.message) || ("HTTP " + geminiRes.status);
-      return json({ error: message }, geminiRes.status);
+    if (!geminiRes || !geminiRes.ok) {
+      return json({ error: lastMessage }, 502);
     }
 
     const parts = (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) || [];
