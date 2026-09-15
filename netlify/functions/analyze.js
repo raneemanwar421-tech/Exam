@@ -56,23 +56,43 @@ exports.handler = async function (event) {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
-    const geminiRes = await fetch(url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-goog-api-key": GEMINI_API_KEY
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              { inline_data: { mime_type: safeMediaType, data: image } },
-              { text: PROMPT }
-            ]
-          }
-        ]
-      })
-    });
+    // Netlify's synchronous functions are killed around the 10s mark on the
+    // free tier; abort a bit earlier so the client gets a clear, friendly
+    // error instead of a bare network failure / hung "جارٍ التحليل…" state.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 9000);
+
+    let geminiRes;
+    try {
+      geminiRes = await fetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-goog-api-key": GEMINI_API_KEY
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { inline_data: { mime_type: safeMediaType, data: image } },
+                { text: PROMPT }
+              ]
+            }
+          ],
+          // Ask Gemini to return raw JSON directly instead of relying on
+          // the client stripping ```json fences — fewer parse failures.
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+    } catch (fetchErr) {
+      clearTimeout(timeout);
+      if (fetchErr && fetchErr.name === "AbortError") {
+        return json({ error: "استغرق تحليل الصورة وقتاً طويلاً. جرّب صورة أوضح أو أصغر حجماً." }, 504);
+      }
+      throw fetchErr;
+    }
+    clearTimeout(timeout);
 
     const data = await geminiRes.json();
 
