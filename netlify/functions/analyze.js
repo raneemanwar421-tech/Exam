@@ -26,7 +26,7 @@ const MODEL = "gemini-3.5-flash-lite"; // الموديل الحالي الموص
 exports.handler = async function (event) {
   try {
     if (event.httpMethod !== "POST") {
-      return json({ error: "Method not allowed" }, 405);
+      return json({ error: "Method not allowed" }, 405, { allow: "POST" });
     }
 
     const APP_SECRET = process.env.APP_SECRET || "";
@@ -34,11 +34,21 @@ exports.handler = async function (event) {
       return json({ error: "غير مصرّح." }, 401);
     }
 
-    const body = JSON.parse(event.body || "{}");
+    let body;
+    try {
+      body = JSON.parse(event.body || "{}");
+    } catch (_) {
+      return json({ error: "بيانات الطلب غير صالحة." }, 400);
+    }
     const { image, mediaType } = body;
     if (!image) {
       return json({ error: "لم يتم إرسال صورة." }, 400);
     }
+    if (typeof image !== "string" || image.length > 15 * 1024 * 1024) {
+      return json({ error: "حجم الصورة كبير جداً. اختر صورة أقل من 10 ميغابايت تقريباً." }, 413);
+    }
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const safeMediaType = allowedTypes.includes(mediaType) ? mediaType : "image/jpeg";
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
     if (!GEMINI_API_KEY) {
       return json({ error: "مفتاح Gemini API غير مضبوط على Netlify (GEMINI_API_KEY)." }, 500);
@@ -56,7 +66,7 @@ exports.handler = async function (event) {
         contents: [
           {
             parts: [
-              { inline_data: { mime_type: mediaType || "image/jpeg", data: image } },
+              { inline_data: { mime_type: safeMediaType, data: image } },
               { text: PROMPT }
             ]
           }
@@ -76,6 +86,9 @@ exports.handler = async function (event) {
 
     // نرجّعها بنفس شكل رد Anthropic (content: [{type:'text', text}])
     // حتى كود الواجهة (index.html) يشتغل من غير أي تعديل إضافي
+    if (!text) {
+      return json({ error: "لم تُرجع خدمة التحليل نصاً قابلاً للقراءة." }, 502);
+    }
     return json({ content: [{ type: "text", text }] }, 200);
 
   } catch (err) {
@@ -83,10 +96,14 @@ exports.handler = async function (event) {
   }
 };
 
-function json(obj, status) {
+function json(obj, status, extraHeaders = {}) {
   return {
     statusCode: status,
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      ...extraHeaders
+    },
     body: JSON.stringify(obj)
   };
 }
