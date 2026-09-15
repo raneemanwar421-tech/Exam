@@ -21,7 +21,7 @@ const PROMPT = [
   "Rules: copy every piece of text EXACTLY as written (same language, punctuation, quotes «»), no translation, no summarizing, no adding anything not visible on the page. Keep JSON compact (minimal whitespace)."
 ].join("\n");
 
-const MODEL = "gemini-2.5-flash-lite"; // بديل أخف ازدحاماً من الحصة المجانية
+const MODEL = "gemini-3.5-flash-lite"; // الموديل الحالي الموصى به من جوجل (بديل 2.5-flash-lite القديم)
 
 exports.handler = async function (event) {
   try {
