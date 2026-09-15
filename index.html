@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مُجهّز أسئلة الامتحان</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1b2430;
+    --paper:#fbfaf7;
+    --line:#243b53;
+    --accent:#a3231f;
+    --accent-2:#1f5c99;
+    --gold:#b8901f;
+    --muted:#6b7280;
+    --panel:#ffffff;
+    --bg:#eef1f5;
+    --ok:#1a7a3c;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Cairo","Segoe UI","Tahoma",system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  header.app{
+    background:linear-gradient(180deg,#16233a,#1b2b47);
+    color:#fff; padding:22px 18px 26px;
+    text-align:center;
+  }
+  header.app h1{margin:0 0 4px; font-size:1.4rem; letter-spacing:.2px;}
+  header.app p{margin:0; color:#b9c4d6; font-size:.9rem;}
+
+  .wrap{max-width:920px; margin:-14px auto 60px; padding:0 14px;}
+
+  .steps{display:flex; gap:8px; margin:18px 0 14px; overflow-x:auto; padding-bottom:2px;}
+  .step-pill{
+    flex:0 0 auto; display:flex; align-items:center; gap:8px;
+    background:#fff; border:1px solid #dde3ec; border-radius:999px;
+    padding:7px 14px; font-size:.82rem; color:var(--muted); white-space:nowrap;
+  }
+  .step-pill b{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:20px;height:20px;border-radius:50%;background:#e6e9ef;color:#8892a0;
+    font-size:.75rem;
+  }
+  .step-pill.active{border-color:var(--accent-2); color:var(--accent-2); background:#eef5fc;}
+  .step-pill.active b{background:var(--accent-2); color:#fff;}
+  .step-pill.done b{background:var(--ok); color:#fff;}
+  .step-pill.done{color:var(--ok);}
+
+  .panel{
+    background:var(--panel); border-radius:14px; padding:18px;
+    box-shadow:0 1px 3px rgba(20,30,50,.08), 0 8px 24px -12px rgba(20,30,50,.15);
+    margin-bottom:16px;
+  }
+  .panel h2{margin:0 0 4px; font-size:1.05rem;}
+  .panel .hint{color:var(--muted); font-size:.85rem; margin:0 0 14px; line-height:1.6;}
+
+  .capture-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .btn{
+    appearance:none; border:none; cursor:pointer; border-radius:10px;
+    padding:11px 18px; font-size:.9rem; font-weight:600;
+    display:inline-flex; align-items:center; gap:8px; transition:transform .08s ease, opacity .15s ease;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn-primary{background:var(--accent-2); color:#fff;}
+  .btn-primary:hover{opacity:.92;}
+  .btn-secondary{background:#eef1f5; color:var(--ink);}
+  .btn-ghost{background:transparent; color:var(--accent-2); border:1px solid #cfe0f0;}
+  .btn-danger{background:#fdeceb; color:var(--accent);}
+  .btn-sm{padding:6px 10px; font-size:.78rem; border-radius:8px;}
+  .btn[disabled]{opacity:.45; cursor:not-allowed;}
+
+  input[type=file]{display:none;}
+
+  .preview-thumb{margin-top:14px; display:none;}
+  .preview-thumb img{max-width:100%; border-radius:10px; border:1px solid #e3e7ee; display:block;}
+
+  .status-row{display:none; align-items:center; gap:10px; margin-top:14px; font-size:.85rem; color:var(--accent-2);}
+  .spinner{
+    width:16px;height:16px;border-radius:50%;border:2px solid #cfe0f0;border-top-color:var(--accent-2);
+    animation:spin .8s linear infinite; flex:0 0 auto;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .error-box{
+    display:none; background:#fdeceb; border:1px solid #f3c6c2; color:#7a231f;
+    border-radius:10px; padding:12px 14px; font-size:.85rem; margin-top:12px; line-height:1.7;
+  }
+
+  details.debug{margin-top:12px; font-size:.78rem; color:var(--muted);}
+  details.debug textarea{width:100%; min-height:110px; font-family:monospace; font-size:.72rem; margin-top:6px;}
+
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 16px;
+    padding:12px; background:#f7f8fb; border-radius:10px; border:1px dashed #dde3ec;
+  }
+  .toolbar span.lbl{width:100%; font-size:.78rem; color:var(--muted); margin-bottom:2px;}
+
+  /* ===== Exam page replica ===== */
+  .sheet-outer{
+    background:#dfe6ee; border-radius:10px; padding:18px 10px; overflow-x:auto;
+  }
+  .page{
+    width:210mm; height:297mm; margin:0 auto 22px; background:#fff;
+    border:7px double #1f5c99; padding:9mm 10mm 20mm; position:relative;
+    font-size:12.5px; line-height:1.55; direction:rtl; overflow:hidden;
+    font-family:"Cairo","Tahoma",sans-serif;
+  }
+  .page::before{
+    content:''; position:absolute; inset:4mm; border:1px solid var(--gold);
+    pointer-events:none;
+  }
+  .page-content{
+    position:relative; z-index:1; transform-origin:top center; will-change:transform;
+  }
+  .page-footer{
+    position:absolute; left:10mm; right:10mm; bottom:6mm; z-index:2;
+    text-align:center; font-weight:800; font-size:.95rem; color:var(--accent);
+    border-top:1px dashed #c9a227; padding-top:5px; outline:none; letter-spacing:.2px;
+  }
+  .page-footer:focus{ background:#fff8dc; outline:1px solid #f1cf5b; }
+  .title-box{
+    border:3px double var(--accent); text-align:center; padding:8px 10px;
+    font-weight:800; font-size:1.15rem; margin-bottom:12px; position:relative;
+    background:linear-gradient(180deg,#fffdf6,#fff);
+  }
+  .title-box .badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:20px;height:20px;border-radius:50%; background:#ffe066;
+    font-size:.8rem; font-weight:800; margin-inline-start:6px; border:1px solid #d8b800;
+  }
+  .block{position:relative; margin:5px 0; padding:3px 4px; border-radius:6px;}
+  .block:hover{outline:1px dashed #c9d3e0;}
+  .block .controls{
+    position:absolute; inset-inline-end:-4px; top:-4px; display:none; gap:3px; z-index:5;
+  }
+  .block:hover .controls{display:flex;}
+  .ctrl-btn{
+    width:22px;height:22px; border:none; border-radius:5px; background:#1b2430; color:#fff;
+    font-size:.72rem; cursor:pointer; line-height:1; display:flex; align-items:center; justify-content:center;
+  }
+  .ctrl-btn.del{background:var(--accent);}
+
+  .b-section{ color:var(--accent); font-weight:800; font-size:.94rem; margin:12px 0 6px; outline:none; border-bottom:1px solid #eadfc0; padding-bottom:3px;}
+  .b-subhead{ color:var(--accent-2); font-weight:700; font-size:.88rem; margin:2px 0 8px; outline:none;}
+  .b-paragraph{ margin:5px 0; outline:none;}
+  .b-source{ font-weight:700; font-size:.85rem; margin:4px 0 10px; outline:none;}
+
+  .b-question{ display:flex; justify-content:space-between; gap:10px; align-items:baseline; margin:4px 0;}
+  .b-question .qtext{flex:1; outline:none;}
+  .b-question .qpts{font-weight:700; white-space:nowrap; outline:none; direction:ltr;}
+
+  .b-options{ display:flex; gap:18px; flex-wrap:wrap; padding-inline-start:26px; margin:2px 0 9px;}
+  .b-options span{font-weight:700; outline:none;}
+  .b-options span.o0{color:#000;}
+  .b-options span.o1{color:#1f5c99;}
+  .b-options span.o2{color:#1a7a3c;}
+  .b-options span.o3{color:#8b2c6e;}
+
+  table.b-table{width:100%; border-collapse:collapse; margin:8px 0;}
+  table.b-table td{border:1px solid #000; padding:5px 8px; font-size:.85rem; vertical-align:top; outline:none;}
+  table.b-table td.letter{width:24px; font-weight:700; color:#1f5c99;}
+
+  .b-closing{ text-align:center; border-top:1px dashed #000; padding-top:8px; margin-top:14px; color:var(--accent); font-weight:700; outline:none;}
+  .b-blank{ margin:8px 0; outline:none;}
+
+  .page-break-marker{
+    text-align:center; color:#9aa4b2; font-size:.75rem; margin:14px 0;
+    border-top:1px dashed #c9d3e0; padding-top:6px;
+  }
+
+  [contenteditable="true"]:focus{ background:#fff8dc; outline:1px solid #f1cf5b; }
+
+  .empty-state{ text-align:center; color:var(--muted); padding:40px 10px; font-size:.9rem;}
+
+  .export-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;}
+
+  @media (max-width:720px){
+    .page{width:100%; height:auto; overflow:visible; padding:14px; font-size:11.5px;}
+    .page-content{transform:none !important;}
+    .page-footer{position:static; margin-top:14px; left:auto; right:auto; bottom:auto;}
+    .sheet-outer{padding:10px 4px;}
+  }
+
+  @media print{
+    header.app, .steps, .toolbar, .export-row, .no-print, #panelCapture, #panelExport,
+    .panel h2, .panel .hint{display:none !important;}
+    .panel:not(.print-target){display:none !important;}
+    body{background:#fff;}
+    .wrap{margin:0; padding:0; max-width:none;}
+    .panel.print-target{box-shadow:none; padding:0; border-radius:0; margin:0;}
+    .sheet-outer{background:#fff; padding:0;}
+    .page{
+      box-shadow:none; margin:0; width:auto; height:297mm;
+      page-break-after:always; page-break-inside:avoid; border-width:4px;
+    }
+    .block .controls{display:none !important;}
+    .block:hover{outline:none;}
+  }
+</style>
+</head>
+<body>
+
+<header class="app">
+  <h1>مُجهّز صفحة الأسئلة</h1>
+  <p>صوّر ورقة الامتحان، ودعه يجهّز لك نسخة منسّقة جاهزة للتحميل</p>
+</header>
+
+<div class="wrap">
+
+  <div class="steps">
+    <div class="step-pill active" id="pill-1"><b>1</b> التقاط الصورة</div>
+    <div class="step-pill" id="pill-2"><b>2</b> تحليل الصورة</div>
+    <div class="step-pill" id="pill-3"><b>3</b> المراجعة والتعديل</div>
+    <div class="step-pill" id="pill-4"><b>4</b> تحميل الملف</div>
+  </div>
+
+  <!-- STEP 1: capture -->
+  <section class="panel" id="panelCapture">
+    <h2>١. صوّر ورقة الأسئلة</h2>
+    <p class="hint">التقط صورة واضحة ومستقيمة لصفحة الأسئلة (إضاءة جيدة، بدون ظل يغطي النص). يمكنك إضافة أكثر من صورة إذا كان الامتحان من عدة صفحات — كل صورة تُضاف كصفحة جديدة في الملف النهائي.</p>
+    <div class="capture-row">
+      <button class="btn btn-primary" id="btnCamera">📷 التقاط بالكاميرا</button>
+      <button class="btn btn-secondary" id="btnGallery">🖼️ اختيار من المعرض</button>
+      <input type="file" id="fileCamera" accept="image/*" capture="environment">
+      <input type="file" id="fileGallery" accept="image/*">
+    </div>
+    <div class="preview-thumb" id="previewThumb"><img id="previewImg" alt="معاينة الصورة"></div>
+
+    <div style="margin-top:14px; display:none;" id="extractRow">
+      <button class="btn btn-primary" id="btnExtract">✨ تحليل الصورة وتجهيز الصفحة</button>
+    </div>
+
+    <div class="status-row" id="statusRow"><div class="spinner"></div><span id="statusLabel">جارٍ التحليل…</span></div>
+    <div class="error-box" id="errorBox"></div>
+    <details class="debug" id="debugBox" style="display:none;">
+      <summary>عرض استجابة التحليل الخام (لأغراض التشخيص)</summary>
+      <textarea readonly id="debugText"></textarea>
+    </details>
+  </section>
+
+  <!-- STEP 3: structured preview -->
+  <section class="panel print-target" id="panelPreview" style="display:none;">
+    <h2>٣. راجع وعدّل الصفحة</h2>
+    <p class="hint">اضغط على أي نص لتعديله مباشرة. استخدم الأزرار الصغيرة فوق كل عنصر (عند تمرير الفأرة/اللمس) للحذف أو تحريك العنصر. استخدم الأزرار أدناه لإضافة عناصر جديدة في أي مكان — التحليل الآلي قد يخطئ أحياناً في كلمة أو ترتيب، فراجع النتيجة قبل التحميل.</p>
+
+    <div class="toolbar" id="toolbar">
+      <span class="lbl">إضافة عنصر جديد إلى نهاية الصفحة الحالية:</span>
+      <button class="btn btn-ghost btn-sm" data-add="section">+ عنوان قسم</button>
+      <button class="btn btn-ghost btn-sm" data-add="subhead">+ عنوان فرعي</button>
+      <button class="btn btn-ghost btn-sm" data-add="paragraph">+ فقرة نص</button>
+      <button class="btn btn-ghost btn-sm" data-add="source">+ سطر قصير (مصدر/ملاحظة)</button>
+      <button class="btn btn-ghost btn-sm" data-add="question">+ سؤال ونقاط</button>
+      <button class="btn btn-ghost btn-sm" data-add="options">+ خيارات a b c d</button>
+      <button class="btn btn-ghost btn-sm" data-add="table">+ جدول</button>
+      <button class="btn btn-ghost btn-sm" data-add="blank">+ سطر فراغات للترقيم</button>
+      <button class="btn btn-ghost btn-sm" data-add="closing">+ سطر ختامي</button>
+      <button class="btn btn-secondary btn-sm" id="btnNewPage">+ صفحة جديدة ↩</button>
+    </div>
+
+    <div class="sheet-outer">
+      <div id="sheet"></div>
+    </div>
+
+    <div class="export-row">
+      <button class="btn btn-secondary" id="btnAddMorePhoto">📷 إضافة صورة لصفحة أخرى</button>
+    </div>
+  </section>
+
+  <!-- STEP 4: export -->
+  <section class="panel" id="panelExport" style="display:none;">
+    <h2>٤. تحميل الملف النهائي</h2>
+    <p class="hint">نزّل الصفحة كملف Word جاهز للتعديل في Word، أو اطبعها مباشرة كـ PDF من نافذة الطباعة.</p>
+    <div class="export-row">
+      <button class="btn btn-primary" id="btnExportWord">⬇️ تحميل Word (.doc)</button>
+      <button class="btn btn-secondary" id="btnPrint">🖨️ طباعة / حفظ PDF</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  let currentFile = null;
+  /** pages: array of pages, each page is array of blocks */
+  let pages = [[]];
+  /** اسم المعلّمة/المعلّم يظهر أسفل كل صفحة امتحان */
+  let footerName = 'المعلمة: نورة';
+
+  const $ = sel => document.querySelector(sel);
+
+  function setPill(n, state){
+    const p = $('#pill-' + n);
+    p.classList.remove('active','done');
+    if(state) p.classList.add(state);
+  }
+  function activateStep(n){
+    for(let i=1;i<=4;i++){
+      if(i < n) setPill(i,'done');
+      else if(i === n) setPill(i,'active');
+      else setPill(i,'');
+    }
+  }
+
+  // ---------- Step 1: capture ----------
+  $('#btnCamera').addEventListener('click', () => $('#fileCamera').click());
+  $('#btnGallery').addEventListener('click', () => $('#fileGallery').click());
+  $('#fileCamera').addEventListener('change', e => handleFile(e.target.files[0]));
+  $('#fileGallery').addEventListener('change', e => handleFile(e.target.files[0]));
+
+  function handleFile(file){
+    if(!file) return;
+    currentFile = file;
+    const url = URL.createObjectURL(file);
+    $('#previewImg').src = url;
+    $('#previewThumb').style.display = 'block';
+    $('#extractRow').style.display = 'block';
+    $('#errorBox').style.display = 'none';
+    $('#debugBox').style.display = 'none';
+  }
+
+  // ---------- Step 2: analyze with vision ----------
+  $('#btnExtract').addEventListener('click', analyzeImage);
+
+  function fileToBase64(file){
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result.split(',')[1]);
+      r.onerror = () => reject(new Error('تعذّرت قراءة الصورة'));
+      r.readAsDataURL(file);
+    });
+  }
+
+  // ملاحظة: صار التحليل يتم عبر سيرفر بروكسي خاص بك (/api/analyze)
+  // بدل استدعاء api.anthropic.com مباشرة من المتصفح — هيك ما في مفتاح API
+  // أو تعليمات التحليل ظاهرة بكود الصفحة.
+
+  // إذا فعّلت الحماية البسيطة (APP_SECRET) على السيرفر، حط نفس القيمة هون:
+  const APP_SECRET = ''; // مثال: 'my-secret-123' — خلّيه فاضي إذا ما فعّلت الحماية
+
+  async function analyzeImage(){
+    if(!currentFile) return;
+    activateStep(2);
+    $('#btnExtract').disabled = true;
+    $('#statusRow').style.display = 'flex';
+    $('#errorBox').style.display = 'none';
+    $('#statusLabel').textContent = 'جارٍ تحليل الصورة…';
+    try{
+      const base64Data = await fileToBase64(currentFile);
+      const mediaType = currentFile.type && currentFile.type.startsWith('image/') ? currentFile.type : 'image/jpeg';
+
+      const headers = { "Content-Type": "application/json" };
+      if(APP_SECRET) headers["X-App-Secret"] = APP_SECRET;
+
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ image: base64Data, mediaType })
+      });
+
+      const data = await response.json();
+      if(!response.ok){
+        throw new Error(data && data.error ? data.error : ("HTTP " + response.status));
+      }
+      const textParts = (data.content || []).filter(c => c.type === 'text').map(c => c.text);
+      const rawText = textParts.join('\n').trim();
+      $('#debugText').value = rawText;
+      $('#debugBox').style.display = 'block';
+
+      const blocks = safeParseBlocks(rawText).map(normalizeBlock).filter(Boolean);
+      if(blocks.length === 0){
+        throw new Error('لم يتم التعرّف على أي محتوى في الصورة.');
+      }
+
+      if(pages[pages.length-1].length === 0){
+        pages[pages.length-1] = blocks;
+      } else {
+        pages.push(blocks);
+      }
+
+      activateStep(3);
+      $('#panelPreview').style.display = 'block';
+      $('#panelExport').style.display = 'block';
+      renderSheet();
+      $('#panelPreview').scrollIntoView({behavior:'smooth', block:'start'});
+
+    }catch(err){
+      console.error(err);
+      const box = $('#errorBox');
+      box.style.display = 'block';
+      box.innerHTML =
+        'تعذّر تحليل الصورة تلقائياً. ' +
+        (err && err.message ? '(' + err.message + ') ' : '') +
+        'تأكد أن الصورة واضحة وأن الاتصال بالإنترنت متوفر، ثم أعد المحاولة. ' +
+        'يمكنك أيضاً بناء الصفحة يدوياً باستخدام أزرار الإضافة في خطوة المراجعة.';
+      // still let the user proceed manually
+      activateStep(3);
+      $('#panelPreview').style.display = 'block';
+      $('#panelExport').style.display = 'block';
+      renderSheet();
+    }finally{
+      $('#btnExtract').disabled = false;
+      $('#statusRow').style.display = 'none';
+    }
+  }
+
+  // ---------- robust JSON parsing (handles truncated output) ----------
+  function safeParseBlocks(raw){
+    let s = (raw || '').trim();
+    s = s.replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
+    const start = s.indexOf('[');
+    if(start > 0) s = s.slice(start);
+    try{ return JSON.parse(s); }catch(e){}
+    // try trimming to the last complete object
+    const lastComma = s.lastIndexOf('},');
+    if(lastComma > -1){
+      let repaired = s.slice(0, lastComma+1) + ']';
+      if(!repaired.trim().startsWith('[')) repaired = '[' + repaired;
+      try{ return JSON.parse(repaired); }catch(e){}
+    }
+    // last resort: parse each {...} object individually
+    const matches = s.match(/\{[^{}]*(?:\[[^\[\]]*\][^{}]*)*\}/g) || [];
+    const out = [];
+    matches.forEach(m => { try{ out.push(JSON.parse(m)); }catch(e){} });
+    return out;
+  }
+
+  function normalizeBlock(raw){
+    if(!raw || !raw.t) return null;
+    switch(raw.t){
+      case 'heading': return {type:'heading', text: raw.x || ''};
+      case 'section': return {type:'section', text: raw.x || ''};
+      case 'subhead': return {type:'subhead', text: raw.x || ''};
+      case 'paragraph': return {type:'paragraph', text: raw.x || ''};
+      case 'source': return {type:'source', text: raw.x || ''};
+      case 'question': return {type:'question', num: raw.n || '', text: raw.x || '', points: raw.p || ''};
+      case 'options': return {type:'options', opts: Array.isArray(raw.o) ? raw.o.slice(0,4) : []};
+      case 'table': return {type:'table', rows: Array.isArray(raw.r) ? raw.r : []};
+      case 'blank': return {type:'blank', text: raw.x || ''};
+      case 'closing': return {type:'closing', text: raw.x || ''};
+      default: return null;
+    }
+  }
+
+  // ---------- direction helpers ----------
+  function isArabic(text){ return /[\u0600-\u06FF]/.test(text || ''); }
+  function dirFor(text){ return isArabic(text) ? 'rtl' : 'ltr'; }
+  function alignFor(text){ return isArabic(text) ? 'right' : 'left'; }
+
+  // ---------- render editable sheet ----------
+  function renderSheet(){
+    const sheet = $('#sheet');
+    sheet.innerHTML = '';
+    if(pages.every(p => p.length === 0)){
+      sheet.innerHTML = '<div class="empty-state">لا يوجد محتوى بعد — حلّل صورة أو أضف عناصر يدوياً.</div>';
+      return;
+    }
+    pages.forEach((blocks, pIdx) => {
+      const pageEl = document.createElement('div');
+      pageEl.className = 'page';
+      pageEl.dataset.page = pIdx;
+
+      const contentEl = document.createElement('div');
+      contentEl.className = 'page-content';
+      blocks.forEach((b, bIdx) => contentEl.appendChild(renderBlock(b, pIdx, bIdx)));
+      if(blocks.length === 0){
+        const e = document.createElement('div');
+        e.className = 'empty-state';
+        e.textContent = 'صفحة فارغة — أضف عناصر من الأدوات أعلاه.';
+        contentEl.appendChild(e);
+      }
+      pageEl.appendChild(contentEl);
+
+      const footerEl = document.createElement('div');
+      footerEl.className = 'page-footer no-print-edit';
+      footerEl.textContent = footerName;
+      footerEl.setAttribute('contenteditable', 'true');
+      footerEl.addEventListener('input', () => {
+        footerName = footerEl.textContent;
+        document.querySelectorAll('.page-footer').forEach(f => {
+          if(f !== footerEl) f.textContent = footerName;
+        });
+        scheduleFit();
+      });
+      pageEl.appendChild(footerEl);
+
+      sheet.appendChild(pageEl);
+      if(pIdx < pages.length - 1){
+        const marker = document.createElement('div');
+        marker.className = 'page-break-marker';
+        marker.textContent = '↓ صفحة جديدة ↓';
+        sheet.appendChild(marker);
+      }
+    });
+    requestAnimationFrame(fitAllPages);
+  }
+
+  function controls(pIdx, bIdx){
+    const wrap = document.createElement('div');
+    wrap.className = 'controls no-print';
+    const up = ctrlBtn('▲', () => moveBlock(pIdx,bIdx,-1));
+    const down = ctrlBtn('▼', () => moveBlock(pIdx,bIdx,1));
+    const del = ctrlBtn('✕', () => deleteBlock(pIdx,bIdx));
+    del.classList.add('del');
+    wrap.append(up, down, del);
+    return wrap;
+  }
+  function ctrlBtn(txt, fn){
+    const b = document.createElement('button');
+    b.className = 'ctrl-btn';
+    b.textContent = txt;
+    b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
+    return b;
+  }
+  function moveBlock(pIdx,bIdx,dir){
+    const arr = pages[pIdx];
+    const j = bIdx + dir;
+    if(j < 0 || j >= arr.length) return;
+    [arr[bIdx], arr[j]] = [arr[j], arr[bIdx]];
+    renderSheet();
+  }
+  function deleteBlock(pIdx,bIdx){
+    pages[pIdx].splice(bIdx,1);
+    renderSheet();
+  }
+
+  function editable(el, onInput){
+    el.setAttribute('contenteditable','true');
+    el.addEventListener('input', () => { onInput(); scheduleFit(); });
+    return el;
+  }
+
+  // ---------- fit each page onto exactly one A4 sheet ----------
+  let fitTimer = null;
+  function scheduleFit(){
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(fitAllPages, 180);
+  }
+  function fitAllPages(){
+    document.querySelectorAll('.page').forEach(fitPageContent);
+  }
+  function fitPageContent(pageEl){
+    const content = pageEl.querySelector('.page-content');
+    const footer = pageEl.querySelector('.page-footer');
+    if(!content || !footer) return;
+    content.style.transform = 'none';
+    const available = footer.offsetTop - content.offsetTop - 6;
+    const natural = content.scrollHeight;
+    if(natural <= 0 || available <= 0) return;
+    let scale = Math.min(1, available / natural);
+    scale = Math.max(scale, 0.7); // حد أدنى حتى يبقى النص واضح للقراءة
+    content.style.transform = scale < 1 ? `scale(${scale})` : 'none';
+  }
+
+  function renderBlock(b, pIdx, bIdx){
+    const box = document.createElement('div');
+    box.className = 'block';
+    box.appendChild(controls(pIdx,bIdx));
+
+    if(b.type === 'heading'){
+      const div = document.createElement('div');
+      div.className = 'title-box';
+      const span = document.createElement('span');
+      span.textContent = b.text;
+      editable(span, () => b.text = span.textContent);
+      const badge = document.createElement('span');
+      badge.className = 'badge';
+      badge.textContent = '1';
+      div.append(span, badge);
+      box.appendChild(div);
+    }
+    else if(b.type === 'section'){
+      const div = document.createElement('div');
+      div.className = 'b-section';
+      div.style.direction = dirFor(b.text);
+      div.style.textAlign = alignFor(b.text);
+      div.textContent = b.text;
+      editable(div, () => b.text = div.textContent);
+      box.appendChild(div);
+    }
+    else if(b.type === 'subhead'){
+      const div = document.createElement('div');
+      div.className = 'b-subhead';
+      div.style.direction = dirFor(b.text);
+      div.style.textAlign = alignFor(b.text);
+      div.textContent = b.text;
+      editable(div, () => b.text = div.textContent);
+      box.appendChild(div);
+    }
+    else if(b.type === 'paragraph'){
+      const div = document.createElement('div');
+      div.className = 'b-paragraph';
+      const rtl = isArabic(b.text);
+      div.style.direction = rtl ? 'rtl' : 'ltr';
+      div.style.textAlign = rtl ? 'right' : 'justify';
+      div.textContent = b.text;
+      editable(div, () => b.text = div.textContent);
+      box.appendChild(div);
+    }
+    else if(b.type === 'source'){
+      const div = document.createElement('div');
+      div.className = 'b-source';
+      div.style.direction = dirFor(b.text);
+      div.style.textAlign = alignFor(b.text);
+      div.textContent = b.text;
+      editable(div, () => b.text = div.textContent);
+      box.appendChild(div);
+    }
+    else if(b.type === 'question'){
+      const div = document.createElement('div');
+      div.className = 'b-question';
+      div.style.direction = dirFor(b.text);
+      const qt = document.createElement('div');
+      qt.className = 'qtext';
+      qt.textContent = (b.num ? (b.num + '.  ') : '') + b.text;
+      editable(qt, () => {
+        const full = qt.textContent;
+        const m = full.match(/^(\d{1,2})\.\s*(.*)$/);
+        if(m){ b.num = m[1]; b.text = m[2]; } else { b.text = full; }
+      });
+      const qp = document.createElement('div');
+      qp.className = 'qpts';
+      qp.textContent = b.points || '';
+      editable(qp, () => b.points = qp.textContent);
+      div.append(qt, qp);
+      box.appendChild(div);
+    }
+    else if(b.type === 'options'){
+      const div = document.createElement('div');
+      div.className = 'b-options';
+      const anyText = (b.opts || []).join(' ');
+      div.style.direction = dirFor(anyText);
+      const opts = (b.opts && b.opts.length) ? b.opts : ['a.','b.','c.','d.'];
+      opts.slice(0,4).forEach((opt, idx) => {
+        const span = document.createElement('span');
+        span.className = 'o' + idx;
+        span.textContent = opt;
+        editable(span, () => b.opts[idx] = span.textContent);
+        div.appendChild(span);
+      });
+      box.appendChild(div);
+    }
+    else if(b.type === 'table'){
+      const table = document.createElement('table');
+      table.className = 'b-table';
+      const rows = (b.rows && b.rows.length) ? b.rows : [['a','']];
+      const anyText = rows.map(r => r[1]).join(' ');
+      table.style.direction = dirFor(anyText);
+      rows.forEach((row, rIdx) => {
+        const tr = document.createElement('tr');
+        const tdL = document.createElement('td');
+        tdL.className = 'letter';
+        tdL.textContent = row[0];
+        editable(tdL, () => b.rows[rIdx][0] = tdL.textContent);
+        const tdT = document.createElement('td');
+        tdT.textContent = row[1];
+        tdT.style.textAlign = alignFor(row[1]);
+        editable(tdT, () => b.rows[rIdx][1] = tdT.textContent);
+        tr.append(tdL, tdT);
+        table.appendChild(tr);
+      });
+      box.appendChild(table);
+    }
+    else if(b.type === 'blank'){
+      const div = document.createElement('div');
+      div.className = 'b-blank';
+      div.style.direction = 'ltr';
+      div.style.textAlign = 'left';
+      div.textContent = b.text || '1-…………  2-…………  3-…………  4-…………';
+      editable(div, () => b.text = div.textContent);
+      box.appendChild(div);
+    }
+    else if(b.type === 'closing'){
+      const div = document.createElement('div');
+      div.className = 'b-closing';
+      div.style.direction = dirFor(b.text);
+      div.textContent = b.text || 'انتهت الأسئلة';
+      editable(div, () => b.text = div.textContent);
+      box.appendChild(div);
+    }
+    return box;
+  }
+
+  // ---------- toolbar: add block ----------
+  $('#toolbar').addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-add]');
+    if(!btn) return;
+    const kind = btn.dataset.add;
+    const arr = pages[pages.length - 1];
+    let block;
+    switch(kind){
+      case 'section': block = {type:'section', text:'قسم جديد'}; break;
+      case 'subhead': block = {type:'subhead', text:'عنوان فرعي'}; break;
+      case 'paragraph': block = {type:'paragraph', text:'نص الفقرة هنا...'}; break;
+      case 'source': block = {type:'source', text:'سطر قصير...'}; break;
+      case 'question': block = {type:'question', num:String(arr.filter(x=>x.type==='question').length+1), text:'نص السؤال هنا', points:'(10 Pts.)'}; break;
+      case 'options': block = {type:'options', opts:['a. ...','b. ...','c. ...','d. ...']}; break;
+      case 'table': block = {type:'table', rows:[['a','نص'],['b','نص'],['c','نص']]}; break;
+      case 'blank': block = {type:'blank', text:'1-…………  2-…………  3-…………  4-…………'}; break;
+      case 'closing': block = {type:'closing', text:'انتهت الأسئلة'}; break;
+    }
+    if(block){ arr.push(block); renderSheet(); }
+  });
+
+  $('#btnNewPage').addEventListener('click', () => {
+    pages.push([]);
+    renderSheet();
+  });
+
+  $('#btnAddMorePhoto').addEventListener('click', () => {
+    pages.push([]);
+    $('#previewThumb').style.display = 'none';
+    $('#extractRow').style.display = 'none';
+    $('#errorBox').style.display = 'none';
+    $('#debugBox').style.display = 'none';
+    currentFile = null;
+    activateStep(1);
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+
+  // ---------- export: Word ----------
+  $('#btnExportWord').addEventListener('click', exportWord);
+
+  function exportWord(){
+    const sheetHtml = $('#sheet').innerHTML.replace(/<div class="controls no-print">[\s\S]*?<\/div>/g, '');
+    const styleForWord = `
+      body{font-family:Cairo, Arial, Tahoma, sans-serif;}
+      .page{width:210mm;min-height:297mm;border:7px double #1f5c99;padding:9mm 10mm 20mm;margin:0 0 20px;font-size:12.5px;line-height:1.55;position:relative;page-break-after:always;}
+      .page-content{transform:none !important;}
+      .page-footer{margin-top:16px;text-align:center;font-weight:800;font-size:.95rem;color:#a3231f;border-top:1px dashed #c9a227;padding-top:5px;}
+      .title-box{border:3px double #a3231f;text-align:center;padding:8px 10px;font-weight:800;font-size:1.15rem;margin-bottom:12px;}
+      .title-box .badge{display:inline-block;width:20px;height:20px;border-radius:50%;background:#ffe066;font-size:.8rem;font-weight:800;margin-inline-start:6px;text-align:center;}
+      .b-section{color:#a3231f;font-weight:800;font-size:.92rem;margin:10px 0 5px;}
+      .b-subhead{color:#1f5c99;font-weight:700;font-size:.88rem;margin:2px 0 8px;}
+      .b-paragraph{margin:5px 0;}
+      .b-source{font-weight:700;font-size:.85rem;margin:4px 0 10px;}
+      .b-question{display:flex;justify-content:space-between;gap:10px;margin:4px 0;}
+      .b-options{display:flex;gap:18px;flex-wrap:wrap;padding-inline-start:26px;margin:2px 0 9px;}
+      .b-options .o0{color:#000;font-weight:700;} .b-options .o1{color:#1f5c99;font-weight:700;}
+      .b-options .o2{color:#1a7a3c;font-weight:700;} .b-options .o3{color:#8b2c6e;font-weight:700;}
+      table.b-table{width:100%;border-collapse:collapse;margin:8px 0;}
+      table.b-table td{border:1px solid #000;padding:5px 8px;font-size:.85rem;}
+      .b-closing{text-align:center;border-top:1px dashed #000;padding-top:8px;margin-top:14px;color:#a3231f;font-weight:700;}
+      .qpts{font-weight:700;white-space:nowrap;}
+    `;
+    const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta charset="utf-8"><title>ورقة الأسئلة</title>
+    <style>${styleForWord}</style></head>
+    <body dir="rtl">${sheetHtml}</body></html>`;
+
+    const blob = new Blob(['\ufeff', html], {type:'application/msword'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'ورقة-الأسئلة.doc';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+
+  // ---------- export: print/PDF ----------
+  $('#btnPrint').addEventListener('click', () => window.print());
+
+})();
+</script>
+</body>
+</html>
