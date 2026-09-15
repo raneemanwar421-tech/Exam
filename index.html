@@ -104,11 +104,25 @@
   /* ===== Exam page replica ===== */
   .sheet-outer{
     background:#dfe6ee; border-radius:10px; padding:18px 10px; overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
   }
+  .zoom-hint{
+    display:none; text-align:center; font-size:.78rem; color:var(--muted);
+    padding:0 4px 10px;
+  }
+  /* The page is ALWAYS rendered at true A4 size (210mm x 297mm) on every
+     device, including phones. This is intentional: the "fit to one page"
+     calculation below measures the real box that will be printed / exported
+     to Word, so screen, print and Word must all share identical geometry.
+     On narrow screens the user can scroll the sheet horizontally or pinch-
+     zoom (allowed by the viewport meta tag) to review it — the same way a
+     PDF viewer works. Shrinking the box itself on mobile (as before) made
+     the on-screen measurement diverge from the printed page and caused the
+     exported file to spill onto extra pages. */
   .page{
-    width:210mm; height:297mm; min-height:297mm; margin:0 auto 22px; background:#fff;
+    width:210mm; height:297mm; min-height:297mm; max-height:297mm; margin:0 auto 22px; background:#fff;
     border:7px double #1f5c99; padding:9mm 10mm 20mm; position:relative;
-    font-size:12.5px; line-height:1.55; direction:rtl; overflow:hidden;
+    line-height:1.55; direction:rtl; overflow:hidden;
     page-break-after:always; break-after:page; page-break-inside:avoid; break-inside:avoid;
     font-family:"Cairo","Tahoma",sans-serif;
   }
@@ -117,8 +131,7 @@
     pointer-events:none;
   }
   .page-content{
-    position:relative; z-index:1; transform-origin:top center; transform:scale(var(--page-scale, 1));
-    zoom:var(--page-scale, 1); will-change:transform;
+    position:relative; z-index:1; font-size:12.5px;
   }
   .page-footer{
     position:absolute; left:10mm; right:10mm; bottom:6mm; z-index:2;
@@ -126,17 +139,21 @@
     border-top:1px dashed #c9a227; padding-top:5px; outline:none; letter-spacing:.2px;
   }
   .page-footer:focus{ background:#fff8dc; outline:1px solid #f1cf5b; }
+  /* All sizes below are in em, relative to .page-content's font-size.
+     That single font-size is what the fit routine shrinks, so text AND
+     spacing scale down together — a real reflow, not a visual trick, which
+     is also the only kind of scaling Word reliably honors. */
   .title-box{
-    border:3px double var(--accent); text-align:center; padding:8px 10px;
-    font-weight:800; font-size:1.15rem; margin-bottom:12px; position:relative;
+    border:3px double var(--accent); text-align:center; padding:.6em .8em;
+    font-weight:800; font-size:1.4em; margin-bottom:1em; position:relative;
     background:linear-gradient(180deg,#fffdf6,#fff);
   }
   .title-box .badge{
     display:inline-flex; align-items:center; justify-content:center;
-    width:20px;height:20px;border-radius:50%; background:#ffe066;
-    font-size:.8rem; font-weight:800; margin-inline-start:6px; border:1px solid #d8b800;
+    width:1.4em;height:1.4em;border-radius:50%; background:#ffe066;
+    font-size:.65em; font-weight:800; margin-inline-start:.5em; border:1px solid #d8b800;
   }
-  .block{position:relative; margin:5px 0; padding:3px 4px; border-radius:6px;}
+  .block{position:relative; margin:.4em 0; padding:.24em .32em; border-radius:6px;}
   .block:hover{outline:1px dashed #c9d3e0;}
   .block .controls{
     position:absolute; inset-inline-end:-4px; top:-4px; display:none; gap:3px; z-index:5;
@@ -148,28 +165,28 @@
   }
   .ctrl-btn.del{background:var(--accent);}
 
-  .b-section{ color:var(--accent); font-weight:800; font-size:.94rem; margin:12px 0 6px; outline:none; border-bottom:1px solid #eadfc0; padding-bottom:3px;}
-  .b-subhead{ color:var(--accent-2); font-weight:700; font-size:.88rem; margin:2px 0 8px; outline:none;}
-  .b-paragraph{ margin:5px 0; outline:none;}
-  .b-source{ font-weight:700; font-size:.85rem; margin:4px 0 10px; outline:none;}
+  .b-section{ color:var(--accent); font-weight:800; font-size:1.15em; margin:1em 0 .5em; outline:none; border-bottom:1px solid #eadfc0; padding-bottom:.25em;}
+  .b-subhead{ color:var(--accent-2); font-weight:700; font-size:1.05em; margin:.2em 0 .6em; outline:none;}
+  .b-paragraph{ margin:.4em 0; font-size:1em; outline:none;}
+  .b-source{ font-weight:700; font-size:1.05em; margin:.3em 0 .8em; outline:none;}
 
-  .b-question{ display:flex; justify-content:space-between; gap:10px; align-items:baseline; margin:4px 0;}
+  .b-question{ display:flex; justify-content:space-between; gap:.8em; align-items:baseline; margin:.3em 0; font-size:1em;}
   .b-question .qtext{flex:1; outline:none;}
   .b-question .qpts{font-weight:700; white-space:nowrap; outline:none; direction:ltr;}
 
-  .b-options{ display:flex; gap:18px; flex-wrap:wrap; padding-inline-start:26px; margin:2px 0 9px;}
+  .b-options{ display:flex; gap:1.4em; flex-wrap:wrap; padding-inline-start:2em; margin:.15em 0 .7em; font-size:1em;}
   .b-options span{font-weight:700; outline:none;}
   .b-options span.o0{color:#000;}
   .b-options span.o1{color:#1f5c99;}
   .b-options span.o2{color:#1a7a3c;}
   .b-options span.o3{color:#8b2c6e;}
 
-  table.b-table{width:100%; border-collapse:collapse; margin:8px 0;}
-  table.b-table td{border:1px solid #000; padding:5px 8px; font-size:.85rem; vertical-align:top; outline:none;}
-  table.b-table td.letter{width:24px; font-weight:700; color:#1f5c99;}
+  table.b-table{width:100%; border-collapse:collapse; margin:.6em 0; font-size:1em;}
+  table.b-table td{border:1px solid #000; padding:.4em .6em; font-size:1.05em; vertical-align:top; outline:none;}
+  table.b-table td.letter{width:1.8em; font-weight:700; color:#1f5c99;}
 
-  .b-closing{ text-align:center; border-top:1px dashed #000; padding-top:8px; margin-top:14px; color:var(--accent); font-weight:700; outline:none;}
-  .b-blank{ margin:8px 0; outline:none;}
+  .b-closing{ text-align:center; border-top:1px dashed #000; padding-top:.6em; margin-top:1.1em; color:var(--accent); font-weight:700; font-size:1em; outline:none;}
+  .b-blank{ margin:.6em 0; font-size:1em; outline:none;}
 
   .page-break-marker{
     text-align:center; color:#9aa4b2; font-size:.75rem; margin:14px 0;
@@ -183,26 +200,23 @@
   .export-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;}
 
   @media (max-width:720px){
-    .page{width:100%; height:auto; min-height:0; overflow:visible; padding:14px; font-size:11.5px;}
-    .page-content{transform:none !important; zoom:1 !important;}
-    .page-footer{position:static; margin-top:14px; left:auto; right:auto; bottom:auto;}
+    .zoom-hint{display:block;}
     .sheet-outer{padding:10px 4px;}
   }
 
   @media print{
-    header.app, .steps, .toolbar, .export-row, .no-print, #panelCapture, #panelExport,
+    header.app, .steps, .toolbar, .export-row, .no-print, .zoom-hint, #panelCapture, #panelExport,
     .panel h2, .panel .hint{display:none !important;}
     .panel:not(.print-target){display:none !important;}
     body{background:#fff;}
     .wrap{margin:0; padding:0; max-width:none;}
     .panel.print-target{box-shadow:none; padding:0; border-radius:0; margin:0;}
-    .sheet-outer{background:#fff; padding:0;}
+    .sheet-outer{background:#fff; padding:0; overflow:visible;}
     .page{
       box-shadow:none; margin:0; width:auto; height:297mm;
       min-height:297mm; page-break-after:always; page-break-inside:avoid;
       break-after:page; break-inside:avoid; border-width:4px; overflow:hidden;
     }
-    .page-content{transform:none !important; zoom:var(--page-scale, 1) !important;}
     .block .controls{display:none !important;}
     .block:hover{outline:none;}
   }
@@ -267,6 +281,8 @@
       <button class="btn btn-secondary btn-sm" id="btnNewPage">+ صفحة جديدة ↩</button>
     </div>
 
+    <p class="zoom-hint no-print">📱 الصفحة بحجمها الحقيقي (A4) — مرّرها أفقياً أو قرّب بإصبعين لمراجعتها، هذا لا يؤثر على حجمها عند الطباعة أو التصدير.</p>
+    <div class="error-box no-print" id="overflowNotice" style="display:none;"></div>
     <div class="sheet-outer">
       <div id="sheet"></div>
     </div>
@@ -472,6 +488,18 @@
 
   // ---------- render editable sheet ----------
   function renderSheet(){
+    renderSheetOnce();
+    if(pages.every(p => p.length === 0)){
+      hideOverflowNotice();
+      return;
+    }
+    requestAnimationFrame(() => {
+      fitAllPages();
+      const moved = resolveOverflow();
+      if(moved) showOverflowNotice(); else hideOverflowNotice();
+    });
+  }
+  function renderSheetOnce(){
     const sheet = $('#sheet');
     sheet.innerHTML = '';
     if(pages.every(p => p.length === 0)){
@@ -515,7 +543,6 @@
         sheet.appendChild(marker);
       }
     });
-    requestAnimationFrame(fitAllPages);
   }
 
   function controls(pIdx, bIdx){
@@ -554,6 +581,14 @@
   }
 
   // ---------- fit each page onto exactly one A4 sheet ----------
+  // Fitting works by shrinking .page-content's real font-size (a plain
+  // inline px value) rather than a CSS transform/zoom trick. Every block's
+  // font-size, margin and padding is defined in em against that base (see
+  // CSS above), so reducing it reflows text AND spacing together — the
+  // same box model in the browser, in print, and inside Word, which does
+  // not reliably support "transform" or "zoom".
+  const BASE_FONT_PX = 12.5;
+  const MIN_FONT_PX = 8.5;
   let fitTimer = null;
   function scheduleFit(){
     clearTimeout(fitTimer);
@@ -562,21 +597,74 @@
   function fitAllPages(){
     document.querySelectorAll('.page').forEach(fitPageContent);
   }
-  function fitPageContent(pageEl){
+  function availableHeight(pageEl){
     const content = pageEl.querySelector('.page-content');
     const footer = pageEl.querySelector('.page-footer');
-    if(!content || !footer) return;
-    content.style.setProperty('--page-scale', '1');
-    content.style.transform = 'none';
-    content.style.zoom = '1';
-    const available = Math.max(1, footer.offsetTop - content.offsetTop - 6);
-    const natural = Math.max(1, content.scrollHeight);
-    // Calculate one scale for the complete content. Do not impose a minimum:
-    // a small exam page must remain one physical A4 page rather than overflow.
-    const scale = Math.min(1, available / natural);
-    content.style.setProperty('--page-scale', String(scale));
-    content.style.transform = scale < 1 ? `scale(${scale})` : 'none';
-    content.style.zoom = '1';
+    if(!content || !footer) return 0;
+    return Math.max(0, footer.offsetTop - content.offsetTop - 6);
+  }
+  function fitPageContent(pageEl){
+    const content = pageEl.querySelector('.page-content');
+    if(!content) return;
+    content.style.fontSize = BASE_FONT_PX + 'px';
+    const available = availableHeight(pageEl);
+    let natural = content.scrollHeight;
+    if(natural <= available || available <= 0){
+      return; // fits at full size (or no footer yet to measure against)
+    }
+    // Binary-search the largest font-size (down to the readability floor)
+    // that makes the content fit the physical page height.
+    let lo = MIN_FONT_PX, hi = BASE_FONT_PX, best = MIN_FONT_PX;
+    for(let i = 0; i < 14; i++){
+      const mid = (lo + hi) / 2;
+      content.style.fontSize = mid + 'px';
+      if(content.scrollHeight <= available){
+        best = mid; lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    content.style.fontSize = best + 'px';
+  }
+
+  // If a page still overflows even at the minimum readable font-size, move
+  // its last block onto the next page rather than letting `.page{overflow:
+  // hidden}` silently clip exam questions off the printed/exported sheet.
+  function resolveOverflow(){
+    let moved = false;
+    for(let guard = 0; guard < 200; guard++){
+      let didMoveThisPass = false;
+      const pageEls = Array.from(document.querySelectorAll('.page'));
+      for(let pIdx = 0; pIdx < pageEls.length; pIdx++){
+        const pageEl = pageEls[pIdx];
+        const content = pageEl.querySelector('.page-content');
+        if(!content) continue;
+        fitPageContent(pageEl);
+        const available = availableHeight(pageEl);
+        if(available <= 0) continue;
+        if(content.scrollHeight > available && pages[pIdx] && pages[pIdx].length > 1){
+          const moving = pages[pIdx].pop();
+          if(!pages[pIdx + 1]) pages.push([]);
+          pages[pIdx + 1].unshift(moving);
+          moved = true; didMoveThisPass = true;
+        }
+      }
+      if(!didMoveThisPass) break;
+      renderSheetOnce();
+    }
+    return moved;
+  }
+
+  const overflowNotice = () => document.getElementById('overflowNotice');
+  function showOverflowNotice(){
+    const box = overflowNotice();
+    if(!box) return;
+    box.textContent = 'تنبيه: محتوى إحدى الصفحات طويل جداً على أن يظهر كاملاً بخط مقروء ضمن صفحة A4 واحدة، فتم نقل الأسئلة الزائدة تلقائياً إلى صفحة جديدة بدل حذفها. راجع ترتيب الصفحات أدناه.';
+    box.style.display = 'block';
+  }
+  function hideOverflowNotice(){
+    const box = overflowNotice();
+    if(box) box.style.display = 'none';
   }
 
   function renderBlock(b, pIdx, bIdx){
@@ -749,39 +837,46 @@
   $('#btnExportWord').addEventListener('click', exportWord);
 
   function exportWord(){
-    // Clone the rendered sheet so controls and editor-only markers never reach Word.
+    // Re-fit right before export so the exported file reflects the latest
+    // edits, then clone the rendered sheet so controls and editor-only
+    // markers never reach Word. Each .page-content already carries a real
+    // inline font-size (in px) from the fit routine above — that is a
+    // plain, universally-supported style, unlike the CSS transform/zoom
+    // trick this export used to rely on, which Word does not honor. No
+    // extra scaling step is needed here.
+    fitAllPages();
+    resolveOverflow();
     const clone = $('#sheet').cloneNode(true);
     clone.querySelectorAll('.controls, .page-break-marker').forEach(el => el.remove());
     clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
-    clone.querySelectorAll('.page-content').forEach(content => {
-      const scale = content.style.getPropertyValue('--page-scale') || '1';
-      content.style.transform = 'none';
-      content.style.zoom = scale;
-      content.style.setProperty('--page-scale', scale);
-    });
     const sheetHtml = clone.innerHTML;
+    // Mirrors the on-screen CSS, but with every size expressed as a fixed
+    // pt/px value instead of em/rem or CSS variables — Word's HTML importer
+    // (desktop and Android alike) supports plain font-size and padding
+    // values reliably, but not custom properties, "zoom" or "transform".
     const styleForWord = `
       @page{size:A4 portrait;margin:0;}
       html,body{margin:0;padding:0;background:#fff;font-family:Arial,Tahoma,sans-serif;}
       body{direction:rtl;}
-      .page{box-sizing:border-box;width:210mm;height:297mm;min-height:297mm;overflow:hidden;border:7px double #1f5c99;padding:9mm 10mm 20mm;margin:0;position:relative;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;font-size:12.5px;line-height:1.55;direction:rtl;}
+      .page{box-sizing:border-box;width:210mm;height:297mm;min-height:297mm;overflow:hidden;border:7px double #1f5c99;padding:9mm 10mm 20mm;margin:0;position:relative;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;line-height:1.55;direction:rtl;}
       .page:last-child{page-break-after:auto;break-after:auto;}
-      .page-content{position:relative;z-index:1;transform-origin:top center;transform:none;}
-      .page-footer{position:absolute;left:10mm;right:10mm;bottom:6mm;text-align:center;font-weight:800;font-size:.95rem;color:#a3231f;border-top:1px dashed #c9a227;padding-top:5px;}
-      .title-box{border:3px double #a3231f;text-align:center;padding:8px 10px;font-weight:800;font-size:1.15rem;margin-bottom:12px;}
-      .title-box .badge{display:inline-block;width:20px;height:20px;border-radius:50%;background:#ffe066;font-size:.8rem;font-weight:800;margin-inline-start:6px;text-align:center;}
-      .block{break-inside:avoid;page-break-inside:avoid;}
-      .b-section{color:#a3231f;font-weight:800;font-size:.92rem;margin:10px 0 5px;}
-      .b-subhead{color:#1f5c99;font-weight:700;font-size:.88rem;margin:2px 0 8px;}
-      .b-paragraph{margin:5px 0;}
-      .b-source{font-weight:700;font-size:.85rem;margin:4px 0 10px;}
-      .b-question{display:flex;justify-content:space-between;gap:10px;margin:4px 0;break-inside:avoid;page-break-inside:avoid;}
-      .b-options{display:flex;gap:18px;flex-wrap:wrap;padding-inline-start:26px;margin:2px 0 9px;break-inside:avoid;page-break-inside:avoid;}
+      .page-content{position:relative;z-index:1;}
+      .page-footer{position:absolute;left:10mm;right:10mm;bottom:6mm;text-align:center;font-weight:800;font-size:12px;color:#a3231f;border-top:1px dashed #c9a227;padding-top:5px;}
+      .title-box{border:3px double #a3231f;text-align:center;padding:.6em .8em;font-weight:800;font-size:1.4em;margin-bottom:1em;}
+      .title-box .badge{display:inline-block;width:1.4em;height:1.4em;border-radius:50%;background:#ffe066;font-size:.65em;font-weight:800;margin-inline-start:.5em;text-align:center;}
+      .block{break-inside:avoid;page-break-inside:avoid;margin:.4em 0;padding:.24em .32em;}
+      .b-section{color:#a3231f;font-weight:800;font-size:1.15em;margin:1em 0 .5em;}
+      .b-subhead{color:#1f5c99;font-weight:700;font-size:1.05em;margin:.2em 0 .6em;}
+      .b-paragraph{margin:.4em 0;}
+      .b-source{font-weight:700;font-size:1.05em;margin:.3em 0 .8em;}
+      .b-question{display:flex;justify-content:space-between;gap:.8em;margin:.3em 0;break-inside:avoid;page-break-inside:avoid;}
+      .b-options{display:flex;gap:1.4em;flex-wrap:wrap;padding-inline-start:2em;margin:.15em 0 .7em;break-inside:avoid;page-break-inside:avoid;}
       .b-options .o0{color:#000;font-weight:700;} .b-options .o1{color:#1f5c99;font-weight:700;}
       .b-options .o2{color:#1a7a3c;font-weight:700;} .b-options .o3{color:#8b2c6e;font-weight:700;}
-      table.b-table{width:100%;border-collapse:collapse;margin:8px 0;break-inside:avoid;page-break-inside:avoid;}
-      table.b-table td{border:1px solid #000;padding:5px 8px;font-size:.85rem;}
-      .b-closing{text-align:center;border-top:1px dashed #000;padding-top:8px;margin-top:14px;color:#a3231f;font-weight:700;}
+      table.b-table{width:100%;border-collapse:collapse;margin:.6em 0;break-inside:avoid;page-break-inside:avoid;}
+      table.b-table td{border:1px solid #000;padding:.4em .6em;font-size:1.05em;}
+      table.b-table td.letter{width:1.8em;font-weight:700;color:#1f5c99;}
+      .b-closing{text-align:center;border-top:1px dashed #000;padding-top:.6em;margin-top:1.1em;color:#a3231f;font-weight:700;}
       .qpts{font-weight:700;white-space:nowrap;}
     `;
     const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
@@ -801,7 +896,22 @@
   }
 
   // ---------- export: print/PDF ----------
-  $('#btnPrint').addEventListener('click', () => window.print());
+  $('#btnPrint').addEventListener('click', () => {
+    fitAllPages();
+    resolveOverflow();
+    window.print();
+  });
+
+  // Re-fit whenever something could change how much space the content
+  // needs: the window resizing/rotating on a phone, or the Cairo webfont
+  // finishing its load (its metrics differ from the fallback font used
+  // before it loads, which can shift how much text a line holds).
+  window.addEventListener('resize', scheduleFit);
+  window.addEventListener('orientationchange', scheduleFit);
+  window.addEventListener('beforeprint', () => { fitAllPages(); resolveOverflow(); });
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(() => fitAllPages()).catch(() => {});
+  }
 
 })();
 </script>
