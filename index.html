@@ -2,25 +2,24 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#16233a">
 <title>مُجهّز أسئلة الامتحان</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#1b2430;
-    --paper:#fbfaf7;
-    --line:#243b53;
-    --accent:#a3231f;
-    --accent-2:#1f5c99;
-    --gold:#b8901f;
-    --muted:#6b7280;
-    --panel:#ffffff;
-    --bg:#eef1f5;
-    --ok:#1a7a3c;
+    --ink:#1b2430; --paper:#fbfaf7; --line:#243b53;
+    --accent:#a3231f; --accent-2:#1f5c99; --gold:#b8901f;
+    --muted:#6b7280; --panel:#ffffff; --bg:#eef1f5; --ok:#1a7a3c;
+    /* dynamic page geometry (driven by the settings panel) */
+    --page-w:210mm; --page-h:297mm;
+    --m-t:9mm; --m-b:16mm; --m-l:10mm; --m-r:10mm;
+    --base-font:12.5px; --line-h:1.55; --view-zoom:1;
   }
   *{box-sizing:border-box;}
+  html{ -webkit-text-size-adjust:100%; }
   body{
     margin:0; background:var(--bg); color:var(--ink);
     font-family:"Cairo","Segoe UI","Tahoma",system-ui,sans-serif;
@@ -28,15 +27,14 @@
   }
   header.app{
     background:linear-gradient(180deg,#16233a,#1b2b47);
-    color:#fff; padding:22px 18px 26px;
-    text-align:center;
+    color:#fff; padding:20px 16px 26px; text-align:center;
   }
-  header.app h1{margin:0 0 4px; font-size:1.4rem; letter-spacing:.2px;}
-  header.app p{margin:0; color:#b9c4d6; font-size:.9rem;}
+  header.app h1{margin:0 0 4px; font-size:1.35rem; letter-spacing:.2px;}
+  header.app p{margin:0; color:#b9c4d6; font-size:.88rem;}
 
-  .wrap{max-width:920px; margin:-14px auto 60px; padding:0 14px;}
+  .wrap{max-width:960px; margin:-14px auto 60px; padding:0 12px;}
 
-  .steps{display:flex; gap:8px; margin:18px 0 14px; overflow-x:auto; padding-bottom:2px;}
+  .steps{display:flex; gap:8px; margin:16px 0 14px; overflow-x:auto; padding-bottom:2px;}
   .step-pill{
     flex:0 0 auto; display:flex; align-items:center; gap:8px;
     background:#fff; border:1px solid #dde3ec; border-radius:999px;
@@ -44,8 +42,7 @@
   }
   .step-pill b{
     display:inline-flex; align-items:center; justify-content:center;
-    width:20px;height:20px;border-radius:50%;background:#e6e9ef;color:#8892a0;
-    font-size:.75rem;
+    width:20px;height:20px;border-radius:50%;background:#e6e9ef;color:#8892a0; font-size:.75rem;
   }
   .step-pill.active{border-color:var(--accent-2); color:var(--accent-2); background:#eef5fc;}
   .step-pill.active b{background:var(--accent-2); color:#fff;}
@@ -63,8 +60,9 @@
   .capture-row{display:flex; gap:10px; flex-wrap:wrap;}
   .btn{
     appearance:none; border:none; cursor:pointer; border-radius:10px;
-    padding:11px 18px; font-size:.9rem; font-weight:600;
-    display:inline-flex; align-items:center; gap:8px; transition:transform .08s ease, opacity .15s ease;
+    padding:11px 18px; font-size:.92rem; font-weight:600; font-family:inherit;
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    transition:transform .08s ease, opacity .15s ease; touch-action:manipulation;
   }
   .btn:active{transform:scale(.97);}
   .btn-primary{background:var(--accent-2); color:#fff;}
@@ -72,13 +70,15 @@
   .btn-secondary{background:#eef1f5; color:var(--ink);}
   .btn-ghost{background:transparent; color:var(--accent-2); border:1px solid #cfe0f0;}
   .btn-danger{background:#fdeceb; color:var(--accent);}
-  .btn-sm{padding:6px 10px; font-size:.78rem; border-radius:8px;}
+  .btn-sm{padding:7px 12px; font-size:.8rem; border-radius:8px;}
   .btn[disabled]{opacity:.45; cursor:not-allowed;}
-
   input[type=file]{display:none;}
 
-  .preview-thumb{margin-top:14px; display:none;}
+  .preview-thumb{margin-top:14px; display:none; position:relative;}
   .preview-thumb img{max-width:100%; border-radius:10px; border:1px solid #e3e7ee; display:block;}
+  .preview-thumb .rm{
+    position:absolute; top:8px; inset-inline-start:8px;
+  }
 
   .status-row{display:none; align-items:center; gap:10px; margin-top:14px; font-size:.85rem; color:var(--accent-2);}
   .spinner{
@@ -91,9 +91,24 @@
     display:none; background:#fdeceb; border:1px solid #f3c6c2; color:#7a231f;
     border-radius:10px; padding:12px 14px; font-size:.85rem; margin-top:12px; line-height:1.7;
   }
-
   details.debug{margin-top:12px; font-size:.78rem; color:var(--muted);}
   details.debug textarea{width:100%; min-height:110px; font-family:monospace; font-size:.72rem; margin-top:6px;}
+
+  /* ===== settings panel ===== */
+  .settings-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+    gap:12px 16px;
+  }
+  .fld{display:flex; flex-direction:column; gap:6px; font-size:.85rem; font-weight:600;}
+  .fld .lbl-row{display:flex; justify-content:space-between; align-items:baseline;}
+  .fld .lbl-row b{color:var(--accent-2); font-size:.82rem;}
+  .fld select, .fld input[type=text]{
+    font-family:inherit; font-size:.88rem; padding:9px 10px;
+    border:1px solid #d5dce6; border-radius:9px; background:#fff; color:var(--ink);
+  }
+  .fld input[type=range]{ width:100%; accent-color:var(--accent-2); height:28px; }
+  .check-row{display:flex; align-items:center; gap:8px; font-size:.85rem; font-weight:600;}
+  .check-row input{width:18px;height:18px; accent-color:var(--accent-2);}
 
   .toolbar{
     display:flex; flex-wrap:wrap; gap:8px; margin:12px 0 16px;
@@ -101,48 +116,45 @@
   }
   .toolbar span.lbl{width:100%; font-size:.78rem; color:var(--muted); margin-bottom:2px;}
 
-  /* ===== Exam page replica ===== */
+  /* ===== exam page replica (true page size everywhere) ===== */
   .sheet-outer{
-    background:#dfe6ee; border-radius:10px; padding:18px 10px; overflow-x:auto;
+    background:#dfe6ee; border-radius:10px; padding:18px 10px; overflow:auto;
     -webkit-overflow-scrolling:touch;
   }
-  .zoom-hint{
-    display:none; text-align:center; font-size:.78rem; color:var(--muted);
-    padding:0 4px 10px;
+  .zoom-bar{
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    padding:0 4px 10px; font-size:.8rem; color:var(--muted);
   }
-  /* The page is ALWAYS rendered at true A4 size (210mm x 297mm) on every
-     device, including phones. This is intentional: the "fit to one page"
-     calculation below measures the real box that will be printed / exported
-     to Word, so screen, print and Word must all share identical geometry.
-     On narrow screens the user can scroll the sheet horizontally or pinch-
-     zoom (allowed by the viewport meta tag) to review it — the same way a
-     PDF viewer works. Shrinking the box itself on mobile (as before) made
-     the on-screen measurement diverge from the printed page and caused the
-     exported file to spill onto extra pages. */
+  .zoom-bar .btn{padding:4px 12px;}
+  #sheet{ transform:scale(var(--view-zoom)); transform-origin:top center; }
+
+  .page-head{
+    display:flex; align-items:center; gap:8px; max-width:210mm; margin:0 auto 6px;
+    font-size:.8rem; color:var(--muted);
+  }
+  .page-head .spacer{flex:1;}
+
   .page{
-    width:210mm; height:297mm; min-height:297mm; max-height:297mm; margin:0 auto 22px; background:#fff;
-    border:7px double #1f5c99; padding:9mm 10mm 20mm; position:relative;
-    line-height:1.55; direction:rtl; overflow:hidden;
+    width:var(--page-w); height:var(--page-h); min-height:var(--page-h); max-height:var(--page-h);
+    margin:0 auto 22px; background:#fff;
+    border:7px double #1f5c99; padding:var(--m-t) var(--m-r) var(--m-b) var(--m-l);
+    position:relative; line-height:var(--line-h); direction:rtl; overflow:hidden;
     page-break-after:always; break-after:page; page-break-inside:avoid; break-inside:avoid;
     font-family:"Cairo","Tahoma",sans-serif;
   }
-  .page::before{
-    content:''; position:absolute; inset:4mm; border:1px solid var(--gold);
-    pointer-events:none;
-  }
-  .page-content{
-    position:relative; z-index:1; font-size:12.5px;
-  }
+  .page.border-single{ border:2px solid #1f5c99; }
+  .page.border-none{ border:none; }
+  .page::before{ content:''; position:absolute; inset:4mm; border:1px solid var(--gold); pointer-events:none; }
+  .page.border-none::before, .page.no-frame::before{ display:none; }
+
+  .page-content{ position:relative; z-index:1; font-size:var(--base-font); }
   .page-footer{
     position:absolute; left:10mm; right:10mm; bottom:6mm; z-index:2;
     text-align:center; font-weight:800; font-size:.95rem; color:var(--accent);
     border-top:1px dashed #c9a227; padding-top:5px; outline:none; letter-spacing:.2px;
   }
   .page-footer:focus{ background:#fff8dc; outline:1px solid #f1cf5b; }
-  /* All sizes below are in em, relative to .page-content's font-size.
-     That single font-size is what the fit routine shrinks, so text AND
-     spacing scale down together — a real reflow, not a visual trick, which
-     is also the only kind of scaling Word reliably honors. */
+
   .title-box{
     border:3px double var(--accent); text-align:center; padding:.6em .8em;
     font-weight:800; font-size:1.4em; margin-bottom:1em; position:relative;
@@ -154,22 +166,23 @@
     font-size:.65em; font-weight:800; margin-inline-start:.5em; border:1px solid #d8b800;
   }
   .block{position:relative; margin:.4em 0; padding:.24em .32em; border-radius:6px;}
-  .block:hover, .block:focus-within{outline:1px dashed #c9d3e0;}
+  .block:hover{outline:1px dashed #c9d3e0;}
   .block .controls{
-    position:absolute; inset-inline-end:-4px; top:-4px; display:none; gap:3px; z-index:5;
+    position:absolute; inset-inline-end:-4px; top:-6px; display:none; gap:3px; z-index:5;
+    background:rgba(255,255,255,.92); border-radius:7px; padding:2px;
+    box-shadow:0 1px 4px rgba(20,30,50,.18);
   }
-  .block:hover .controls, .block:focus-within .controls{display:flex;}
-  @media (hover:none), (max-width:720px){
-    /* على شاشات اللمس لا توجد حالة تمرير بالفأرة، فتبقى أزرار التعديل والإزالة ظاهرة دائماً */
-    .block .controls{display:flex;}
-    .block{outline:1px dashed #e2e8f0;}
-  }
+  .block:hover .controls{display:flex;}
+  #sheet.editing .block .controls{display:flex;}
+  @media (hover:none){ .block .controls{display:flex;} }  /* touch devices: always visible */
   .ctrl-btn{
-    width:24px;height:24px; border:none; border-radius:5px; background:#1b2430; color:#fff;
-    font-size:.75rem; cursor:pointer; line-height:1; display:flex; align-items:center; justify-content:center;
+    min-width:26px;height:26px; border:none; border-radius:6px; background:#1b2430; color:#fff;
+    font-size:.78rem; cursor:pointer; line-height:1; display:flex; align-items:center; justify-content:center;
+    touch-action:manipulation;
   }
-  .ctrl-btn.edit{background:var(--accent-2);}
   .ctrl-btn.del{background:var(--accent);}
+  .ctrl-btn.add{background:var(--ok);}
+  .ctrl-btn.edit{background:var(--accent-2);}
 
   .b-section{ color:var(--accent); font-weight:800; font-size:1.15em; margin:1em 0 .5em; outline:none; border-bottom:1px solid #eadfc0; padding-bottom:.25em;}
   .b-subhead{ color:var(--accent-2); font-weight:700; font-size:1.05em; margin:.2em 0 .6em; outline:none;}
@@ -194,52 +207,47 @@
   .b-closing{ text-align:center; border-top:1px dashed #000; padding-top:.6em; margin-top:1.1em; color:var(--accent); font-weight:700; font-size:1em; outline:none;}
   .b-blank{ margin:.6em 0; font-size:1em; outline:none;}
 
-  .page-break-marker{
-    display:flex; align-items:center; justify-content:center; gap:12px;
-    color:#9aa4b2; font-size:.75rem; margin:14px 0;
-    border-top:1px dashed #c9d3e0; padding-top:10px;
-  }
-  .page-del{
-    appearance:none; border:1px solid #f3c6c2; background:#fdeceb; color:var(--accent);
-    border-radius:999px; padding:4px 14px; font-size:.75rem; font-weight:700; cursor:pointer;
-    font-family:inherit;
-  }
-  .page-del:hover{background:#f9d7d4;}
-
+  .page-break-marker{ text-align:center; color:#9aa4b2; font-size:.75rem; margin:14px 0; border-top:1px dashed #c9d3e0; padding-top:6px; }
   [contenteditable="true"]:focus{ background:#fff8dc; outline:1px solid #f1cf5b; }
-
   .empty-state{ text-align:center; color:var(--muted); padding:40px 10px; font-size:.9rem;}
-
   .export-row{display:flex; gap:10px; flex-wrap:wrap; margin-top:6px;}
 
+  /* ===== Android / small screens ===== */
   @media (max-width:720px){
-    .zoom-hint{display:block;}
+    .wrap{padding:0 10px;}
+    .panel{padding:14px;}
+    .capture-row .btn, .export-row .btn{flex:1 1 100%; padding:13px 18px; font-size:1rem;}
+    .toolbar .btn{flex:1 1 45%;}
     .sheet-outer{padding:10px 4px;}
+    .btn{min-height:44px;}         /* comfortable touch target */
+    .btn-sm{min-height:36px;}
   }
 
   @media print{
-    header.app, .steps, .toolbar, .export-row, .no-print, .zoom-hint, #panelCapture, #panelExport,
-    .panel h2, .panel .hint, .page-break-marker{display:none !important;}
+    header.app, .steps, .toolbar, .export-row, .no-print, .zoom-bar, .page-head,
+    #panelCapture, #panelExport, #panelSettings, .panel h2, .panel .hint{display:none !important;}
     .panel:not(.print-target){display:none !important;}
     body{background:#fff;}
     .wrap{margin:0; padding:0; max-width:none;}
     .panel.print-target{box-shadow:none; padding:0; border-radius:0; margin:0;}
     .sheet-outer{background:#fff; padding:0; overflow:visible;}
+    #sheet{transform:none !important;}
     .page{
-      box-shadow:none; margin:0; width:auto; height:297mm;
-      min-height:297mm; page-break-after:always; page-break-inside:avoid;
-      break-after:page; break-inside:avoid; border-width:4px; overflow:hidden;
+      box-shadow:none; margin:0; width:auto; height:var(--page-h);
+      min-height:var(--page-h); page-break-after:always; page-break-inside:avoid;
+      break-after:page; break-inside:avoid; overflow:hidden;
     }
     .block .controls{display:none !important;}
     .block:hover{outline:none;}
   }
 </style>
+<style id="dynPageStyle">@page{ size:210mm 297mm; margin:0; }</style>
 </head>
 <body>
 
 <header class="app">
   <h1>مُجهّز صفحة الأسئلة</h1>
-  <p>صوّر ورقة الامتحان، ودعه يجهّز لك نسخة منسّقة جاهزة للتحميل</p>
+  <p>صوّر ورقة الامتحان، ودعه يجهّز لك نسخة منسّقة جاهزة للتحميل — كل صورة في صفحة واحدة كاملة</p>
 </header>
 
 <div class="wrap">
@@ -251,21 +259,20 @@
     <div class="step-pill" id="pill-4"><b>4</b> تحميل الملف</div>
   </div>
 
-  <!-- مكتبة بناء ملفات Word (.docx) — مضمّنة محلياً مع المشروع حتى يعمل التصدير دائماً، حتى بلا إنترنت -->
-  <!-- مكتبة بناء ملفات Word (.docx) — مضمّنة محلياً مع المشروع حتى يعمل التصدير دائماً، حتى بلا إنترنت -->
-  <script src="./docx.min.js" defer data-docx-local="1"></script>
-
   <!-- STEP 1: capture -->
   <section class="panel" id="panelCapture">
     <h2>١. صوّر ورقة الأسئلة</h2>
-    <p class="hint">التقط صورة واضحة ومستقيمة لصفحة الأسئلة (إضاءة جيدة، بدون ظل يغطي النص). يمكنك إضافة أكثر من صورة إذا كان الامتحان من عدة صفحات — كل صورة تُضاف كصفحة جديدة في الملف النهائي.</p>
+    <p class="hint">التقط صورة واضحة ومستقيمة لصفحة الأسئلة (إضاءة جيدة، بدون ظل يغطي النص). يمكنك إضافة أكثر من صورة إذا كان الامتحان من عدة صفحات — كل صورة تُنسَّق لتملأ صفحة واحدة كاملة في الملف النهائي.</p>
     <div class="capture-row">
       <button class="btn btn-primary" id="btnCamera">📷 التقاط بالكاميرا</button>
       <button class="btn btn-secondary" id="btnGallery">🖼️ اختيار من المعرض</button>
       <input type="file" id="fileCamera" accept="image/*" capture="environment">
       <input type="file" id="fileGallery" accept="image/*">
     </div>
-    <div class="preview-thumb" id="previewThumb"><img id="previewImg" alt="معاينة الصورة"></div>
+    <div class="preview-thumb" id="previewThumb">
+      <img id="previewImg" alt="معاينة الصورة">
+      <button class="btn btn-danger btn-sm rm no-print" id="btnRemoveImg">✕ إزالة الصورة</button>
+    </div>
 
     <div style="margin-top:14px; display:none;" id="extractRow">
       <button class="btn btn-primary" id="btnExtract">✨ تحليل الصورة وتجهيز الصفحة</button>
@@ -279,10 +286,75 @@
     </details>
   </section>
 
+  <!-- SETTINGS -->
+  <section class="panel" id="panelSettings">
+    <h2>⚙️ إعدادات الصفحة والتنسيق</h2>
+    <p class="hint">تحكّم في حجم الصفحة والهوامش وحجم الخط — تُطبَّق فوراً على المعاينة والطباعة وملف Word معاً.</p>
+    <div class="settings-grid">
+      <div class="fld">
+        <div class="lbl-row"><span>حجم الصفحة</span></div>
+        <select id="setPageSize">
+          <option value="a4" selected>A4 ‏(210×297 مم)</option>
+          <option value="a5">A5 ‏(148×210 مم)</option>
+          <option value="b5">B5 ‏(176×250 مم)</option>
+          <option value="letter">Letter ‏(216×279 مم)</option>
+        </select>
+      </div>
+      <div class="fld">
+        <div class="lbl-row"><span>خط ملف Word</span></div>
+        <select id="setFont">
+          <option value="Arial" selected>Arial (متوافق مع كل الأجهزة)</option>
+          <option value="Traditional Arabic">Traditional Arabic</option>
+          <option value="Sakkal Majalla">Sakkal Majalla</option>
+          <option value="Times New Roman">Times New Roman</option>
+          <option value="Cairo">Cairo</option>
+        </select>
+      </div>
+      <div class="fld">
+        <div class="lbl-row"><span>حجم الخط الأساسي</span><b id="valBaseFont">12.5</b></div>
+        <input type="range" id="setBaseFont" min="9" max="16" step="0.5" value="12.5">
+      </div>
+      <div class="fld">
+        <div class="lbl-row"><span>تباعد الأسطر</span><b id="valLineH">1.55</b></div>
+        <input type="range" id="setLineH" min="1.2" max="2" step="0.05" value="1.55">
+      </div>
+      <div class="fld">
+        <div class="lbl-row"><span>الهامش العلوي (مم)</span><b id="valMT">9</b></div>
+        <input type="range" id="setMT" min="3" max="30" step="1" value="9">
+      </div>
+      <div class="fld">
+        <div class="lbl-row"><span>الهامش السفلي (مم)</span><b id="valMB">16</b></div>
+        <input type="range" id="setMB" min="6" max="40" step="1" value="16">
+      </div>
+      <div class="fld">
+        <div class="lbl-row"><span>الهامش الأيمن (مم)</span><b id="valMR">10</b></div>
+        <input type="range" id="setMR" min="3" max="30" step="1" value="10">
+      </div>
+      <div class="fld">
+        <div class="lbl-row"><span>الهامش الأيسر (مم)</span><b id="valML">10</b></div>
+        <input type="range" id="setML" min="3" max="30" step="1" value="10">
+      </div>
+      <div class="fld">
+        <div class="lbl-row"><span>إطار الصفحة</span></div>
+        <select id="setBorder">
+          <option value="double" selected>مزدوج أنيق (افتراضي)</option>
+          <option value="single">بسيط رفيع</option>
+          <option value="none">بدون إطار</option>
+        </select>
+      </div>
+      <div class="fld">
+        <div class="lbl-row"><span>سطر التذييل (اسم المعلّم/ة)</span></div>
+        <input type="text" id="setFooter" value="المعلمة: نورة">
+      </div>
+      <label class="check-row"><input type="checkbox" id="setAutoFit" checked> ملاءمة تلقائية: تصغير الخط حتى يملأ المحتوى صفحة واحدة</label>
+      <label class="check-row"><input type="checkbox" id="setEditing"> إظهار أدوات التحرير على كل العناصر دائماً</label>
+    </div>
+  </section>
+
   <!-- STEP 3: structured preview -->
   <section class="panel print-target" id="panelPreview" style="display:none;">
     <h2>٣. راجع وعدّل الصفحة</h2>
-    <p class="hint">اضغط على أي نص لتعديله مباشرة. استخدم الأزرار الصغيرة فوق كل عنصر (عند تمرير الفأرة/اللمس) للحذف أو تحريك العنصر. استخدم الأزرار أدناه لإضافة عناصر جديدة في أي مكان — التحليل الآلي قد يخطئ أحياناً في كلمة أو ترتيب، فراجع النتيجة قبل التحميل.</p>
+    <p class="hint">اضغط على أي نص لتعديله مباشرة. لكل عنصر أزرار: ▲▼ للتحريك، ✎ للتعديل، ➕ لإدراج فقرة بعده، ✕ للحذف. ولكل صفحة شريط أدوات لنسخها أو حذفها.</p>
 
     <div class="toolbar" id="toolbar">
       <span class="lbl">إضافة عنصر جديد إلى نهاية الصفحة الحالية:</span>
@@ -298,13 +370,18 @@
       <button class="btn btn-secondary btn-sm" id="btnNewPage">+ صفحة جديدة ↩</button>
     </div>
 
-    <p class="zoom-hint no-print">📱 الصفحة بحجمها الحقيقي (A4) — مرّرها أفقياً أو قرّب بإصبعين لمراجعتها، هذا لا يؤثر على حجمها عند الطباعة أو التصدير.</p>
+    <div class="zoom-bar no-print">
+      <button class="btn btn-secondary btn-sm" id="btnZoomOut">➖</button>
+      <span id="zoomLabel">عرض 100%</span>
+      <button class="btn btn-secondary btn-sm" id="btnZoomIn">➕</button>
+      <span>📱 التكبير هنا للعرض فقط — لا يؤثر على حجم الصفحة عند الطباعة أو التصدير.</span>
+    </div>
     <div class="error-box no-print" id="overflowNotice" style="display:none;"></div>
-    <div class="sheet-outer">
+    <div class="sheet-outer" id="sheetOuter">
       <div id="sheet"></div>
     </div>
 
-    <div class="export-row">
+    <div class="export-row" style="margin-top:14px;">
       <button class="btn btn-secondary" id="btnAddMorePhoto">📷 إضافة صورة لصفحة أخرى</button>
     </div>
   </section>
@@ -312,7 +389,7 @@
   <!-- STEP 4: export -->
   <section class="panel" id="panelExport" style="display:none;">
     <h2>٤. تحميل الملف النهائي</h2>
-    <p class="hint">نزّل الصفحة كملف Word جاهز للتعديل في Word، أو اطبعها مباشرة كـ PDF من نافذة الطباعة.</p>
+    <p class="hint">نزّل الصفحة كملف Word ‏(.docx) حقيقي جاهز للتعديل — كل صورة في صفحة كاملة بنفس التنسيق الذي تراه هنا — أو اطبعها مباشرة كـ PDF.</p>
     <div class="export-row">
       <button class="btn btn-primary" id="btnExportWord">⬇️ تحميل Word (.docx)</button>
       <button class="btn btn-secondary" id="btnPrint">🖨️ طباعة / حفظ PDF</button>
@@ -329,10 +406,17 @@
   let currentFile = null;
   /** pages: array of pages, each page is array of blocks */
   let pages = [[]];
-  /** اسم المعلّمة/المعلّم يظهر أسفل كل صفحة امتحان */
   let footerName = 'المعلمة: نورة';
 
+  const settings = {
+    pageSize:'a4', wordFont:'Arial', baseFont:12.5, lineH:1.55,
+    mT:9, mB:16, mR:10, mL:10, border:'double', autoFit:true, editing:false
+  };
+  const PAGE_DIMS = { a4:[210,297], a5:[148,210], b5:[176,250], letter:[216,279] };
+  let viewZoom = 1;
+
   const $ = sel => document.querySelector(sel);
+  const root = document.documentElement;
 
   function setPill(n, state){
     const p = $('#pill-' + n);
@@ -347,11 +431,70 @@
     }
   }
 
+  // ---------- settings ----------
+  function applySettings(){
+    const [w,h] = PAGE_DIMS[settings.pageSize] || PAGE_DIMS.a4;
+    root.style.setProperty('--page-w', w + 'mm');
+    root.style.setProperty('--page-h', h + 'mm');
+    root.style.setProperty('--m-t', settings.mT + 'mm');
+    root.style.setProperty('--m-b', settings.mB + 'mm');
+    root.style.setProperty('--m-l', settings.mL + 'mm');
+    root.style.setProperty('--m-r', settings.mR + 'mm');
+    root.style.setProperty('--base-font', settings.baseFont + 'px');
+    root.style.setProperty('--line-h', String(settings.lineH));
+    document.getElementById('dynPageStyle').textContent =
+      '@page{ size:' + w + 'mm ' + h + 'mm; margin:0; }';
+    document.querySelectorAll('.page').forEach(p => {
+      p.classList.toggle('border-single', settings.border === 'single');
+      p.classList.toggle('border-none', settings.border === 'none');
+      p.classList.toggle('no-frame', settings.border !== 'double');
+    });
+    document.getElementById('sheet').classList.toggle('editing', settings.editing);
+    document.querySelectorAll('.page-footer').forEach(f => f.textContent = footerName);
+    scheduleFit();
+  }
+  function bindRange(id, key, labelId, fmt){
+    const el = $(id);
+    el.addEventListener('input', () => {
+      settings[key] = parseFloat(el.value);
+      $(labelId).textContent = fmt ? fmt(settings[key]) : el.value;
+      applySettings();
+    });
+  }
+  bindRange('#setBaseFont','baseFont','#valBaseFont');
+  bindRange('#setLineH','lineH','#valLineH');
+  bindRange('#setMT','mT','#valMT');
+  bindRange('#setMB','mB','#valMB');
+  bindRange('#setMR','mR','#valMR');
+  bindRange('#setML','mL','#valML');
+  $('#setPageSize').addEventListener('change', e => { settings.pageSize = e.target.value; applySettings(); });
+  $('#setFont').addEventListener('change', e => { settings.wordFont = e.target.value; });
+  $('#setBorder').addEventListener('change', e => { settings.border = e.target.value; applySettings(); });
+  $('#setFooter').addEventListener('input', e => { footerName = e.target.value; applySettings(); });
+  $('#setAutoFit').addEventListener('change', e => { settings.autoFit = e.target.checked; fitAllPages(); resolveOverflow(); });
+  $('#setEditing').addEventListener('change', e => { settings.editing = e.target.checked; applySettings(); });
+
+  // ---------- view zoom (preview only) ----------
+  function setZoom(z){
+    viewZoom = Math.min(2, Math.max(0.4, z));
+    root.style.setProperty('--view-zoom', String(viewZoom));
+    $('#zoomLabel').textContent = 'عرض ' + Math.round(viewZoom*100) + '%';
+  }
+  $('#btnZoomIn').addEventListener('click', () => setZoom(viewZoom + 0.15));
+  $('#btnZoomOut').addEventListener('click', () => setZoom(viewZoom - 0.15));
+
   // ---------- Step 1: capture ----------
   $('#btnCamera').addEventListener('click', () => $('#fileCamera').click());
   $('#btnGallery').addEventListener('click', () => $('#fileGallery').click());
   $('#fileCamera').addEventListener('change', e => handleFile(e.target.files[0]));
   $('#fileGallery').addEventListener('change', e => handleFile(e.target.files[0]));
+  $('#btnRemoveImg').addEventListener('click', () => {
+    currentFile = null;
+    $('#fileCamera').value = ''; $('#fileGallery').value = '';
+    $('#previewThumb').style.display = 'none';
+    $('#extractRow').style.display = 'none';
+    $('#errorBox').style.display = 'none';
+  });
 
   function handleFile(file){
     if(!file) return;
@@ -375,7 +518,7 @@
     $('#debugBox').style.display = 'none';
   }
 
-  // ---------- Step 2: analyze with vision ----------
+  // ---------- Step 2: analyze ----------
   $('#btnExtract').addEventListener('click', analyzeImage);
 
   function fileToBase64(file){
@@ -387,12 +530,8 @@
     });
   }
 
-  // ملاحظة: صار التحليل يتم عبر سيرفر بروكسي خاص بك (/api/analyze)
-  // بدل استدعاء api.anthropic.com مباشرة من المتصفح — هيك ما في مفتاح API
-  // أو تعليمات التحليل ظاهرة بكود الصفحة.
-
-  // إذا فعّلت الحماية البسيطة (APP_SECRET) على السيرفر، حط نفس القيمة هون:
-  const APP_SECRET = ''; // مثال: 'my-secret-123' — خلّيه فاضي إذا ما فعّلت الحماية
+  // إذا فعّلت الحماية البسيطة (APP_SECRET) على السيرفر، ضع نفس القيمة هنا:
+  const APP_SECRET = '';
 
   async function analyzeImage(){
     if(!currentFile) return;
@@ -449,7 +588,6 @@
         (err && err.message ? '(' + err.message + ') ' : '') +
         'تأكد أن الصورة واضحة وأن الاتصال بالإنترنت متوفر، ثم أعد المحاولة. ' +
         'يمكنك أيضاً بناء الصفحة يدوياً باستخدام أزرار الإضافة في خطوة المراجعة.';
-      // still let the user proceed manually
       activateStep(3);
       $('#panelPreview').style.display = 'block';
       $('#panelExport').style.display = 'block';
@@ -460,21 +598,19 @@
     }
   }
 
-  // ---------- robust JSON parsing (handles truncated output) ----------
+  // ---------- robust JSON parsing ----------
   function safeParseBlocks(raw){
     let s = (raw || '').trim();
     s = s.replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
     const start = s.indexOf('[');
     if(start > 0) s = s.slice(start);
     try{ return JSON.parse(s); }catch(e){}
-    // try trimming to the last complete object
     const lastComma = s.lastIndexOf('},');
     if(lastComma > -1){
       let repaired = s.slice(0, lastComma+1) + ']';
       if(!repaired.trim().startsWith('[')) repaired = '[' + repaired;
       try{ return JSON.parse(repaired); }catch(e){}
     }
-    // last resort: parse each {...} object individually
     const matches = s.match(/\{[^{}]*(?:\[[^\[\]]*\][^{}]*)*\}/g) || [];
     const out = [];
     matches.forEach(m => { try{ out.push(JSON.parse(m)); }catch(e){} });
@@ -516,6 +652,38 @@
       if(moved) showOverflowNotice(); else hideOverflowNotice();
     });
   }
+
+  function pageToolbar(pIdx){
+    const bar = document.createElement('div');
+    bar.className = 'page-head no-print';
+    const lbl = document.createElement('span');
+    lbl.textContent = '📄 الصفحة ' + (pIdx + 1) + ' من ' + pages.length;
+    const spacer = document.createElement('span');
+    spacer.className = 'spacer';
+    const mk = (txt, cls, fn, title) => {
+      const b = document.createElement('button');
+      b.className = 'btn ' + cls + ' btn-sm';
+      b.textContent = txt; b.title = title || '';
+      b.addEventListener('click', fn);
+      return b;
+    };
+    bar.append(lbl, spacer,
+      mk('⧉ نسخ الصفحة', 'btn-ghost', () => duplicatePage(pIdx)),
+      mk('✕ حذف الصفحة', 'btn-danger', () => deletePage(pIdx)));
+    return bar;
+  }
+
+  function deletePage(pIdx){
+    if(pages.length <= 1){ pages = [[]]; }
+    else pages.splice(pIdx, 1);
+    renderSheet();
+  }
+  function duplicatePage(pIdx){
+    const copy = JSON.parse(JSON.stringify(pages[pIdx]));
+    pages.splice(pIdx + 1, 0, copy);
+    renderSheet();
+  }
+
   function renderSheetOnce(){
     const sheet = $('#sheet');
     sheet.innerHTML = '';
@@ -524,8 +692,11 @@
       return;
     }
     pages.forEach((blocks, pIdx) => {
+      sheet.appendChild(pageToolbar(pIdx));
       const pageEl = document.createElement('div');
       pageEl.className = 'page';
+      if(settings.border === 'single') pageEl.classList.add('border-single','no-frame');
+      if(settings.border === 'none') pageEl.classList.add('border-none','no-frame');
       pageEl.dataset.page = pIdx;
 
       const contentEl = document.createElement('div');
@@ -540,11 +711,12 @@
       pageEl.appendChild(contentEl);
 
       const footerEl = document.createElement('div');
-      footerEl.className = 'page-footer no-print-edit';
+      footerEl.className = 'page-footer';
       footerEl.textContent = footerName;
       footerEl.setAttribute('contenteditable', 'true');
       footerEl.addEventListener('input', () => {
         footerName = footerEl.textContent;
+        $('#setFooter').value = footerName;
         document.querySelectorAll('.page-footer').forEach(f => {
           if(f !== footerEl) f.textContent = footerName;
         });
@@ -553,56 +725,37 @@
       pageEl.appendChild(footerEl);
 
       sheet.appendChild(pageEl);
-      const marker = document.createElement('div');
-      marker.className = 'page-break-marker no-print';
-      const lbl = document.createElement('span');
-      lbl.textContent = '— صفحة ' + (pIdx + 1) + ' من ' + pages.length + ' —';
-      const delBtn = document.createElement('button');
-      delBtn.className = 'page-del';
-      delBtn.type = 'button';
-      delBtn.textContent = '🗑️ إزالة هذه الصفحة';
-      delBtn.addEventListener('click', () => deletePage(pIdx));
-      marker.append(lbl, delBtn);
-      sheet.appendChild(marker);
+      if(pIdx < pages.length - 1){
+        const marker = document.createElement('div');
+        marker.className = 'page-break-marker no-print';
+        marker.textContent = '↓ صفحة جديدة ↓';
+        sheet.appendChild(marker);
+      }
     });
   }
 
+  // ---------- block controls: move / edit / add-below / delete ----------
   function controls(pIdx, bIdx){
     const wrap = document.createElement('div');
     wrap.className = 'controls no-print';
-    const up = ctrlBtn('▲', 'نقل لأعلى', () => moveBlock(pIdx,bIdx,-1));
-    const down = ctrlBtn('▼', 'نقل لأسفل', () => moveBlock(pIdx,bIdx,1));
-    const edit = ctrlBtn('✎', 'تعديل النص', () => editBlock(pIdx,bIdx));
+    const up = ctrlBtn('▲', () => moveBlock(pIdx,bIdx,-1), 'تحريك لأعلى');
+    const down = ctrlBtn('▼', () => moveBlock(pIdx,bIdx,1), 'تحريك لأسفل');
+    const edit = ctrlBtn('✎', () => editBlock(pIdx,bIdx), 'تعديل النص');
     edit.classList.add('edit');
-    const del = ctrlBtn('✕', 'إزالة العنصر', () => deleteBlock(pIdx,bIdx));
+    const add = ctrlBtn('➕', () => insertAfter(pIdx,bIdx), 'إدراج فقرة بعد هذا العنصر');
+    add.classList.add('add');
+    const del = ctrlBtn('✕', () => deleteBlock(pIdx,bIdx), 'حذف العنصر');
     del.classList.add('del');
-    wrap.append(up, down, edit, del);
+    wrap.append(up, down, edit, add, del);
     return wrap;
   }
-  function ctrlBtn(txt, label, fn){
+  function ctrlBtn(txt, fn, title){
     const b = document.createElement('button');
     b.className = 'ctrl-btn';
     b.textContent = txt;
-    b.title = label;
-    b.setAttribute('aria-label', label);
+    if(title) b.title = title;
     b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
     return b;
-  }
-  // زر التعديل: ينقل التركيز مباشرة إلى نص العنصر لبدء الكتابة، ويظهر لوحة المفاتيح على الجوال
-  function editBlock(pIdx, bIdx){
-    const pageEl = document.querySelectorAll('.page')[pIdx];
-    const blockEl = pageEl && pageEl.querySelectorAll('.block')[bIdx];
-    const target = blockEl && blockEl.querySelector('[contenteditable="true"]');
-    if(!target) return;
-    target.focus();
-    try{
-      const range = document.createRange();
-      range.selectNodeContents(target);
-      range.collapse(false);
-      const sel = window.getSelection();
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }catch(e){}
   }
   function moveBlock(pIdx,bIdx,dir){
     const arr = pages[pIdx];
@@ -615,16 +768,25 @@
     pages[pIdx].splice(bIdx,1);
     renderSheet();
   }
-  // إزالة صفحة كاملة من الملف (مع تأكيد حتى لا تُفقد أسئلة بالخطأ)
-  function deletePage(pIdx){
-    if(pages.length <= 1){
-      pages[0] = [];
-      renderSheet();
-      return;
-    }
-    if(!window.confirm('حذف الصفحة ' + (pIdx + 1) + ' بكل محتواها؟')) return;
-    pages.splice(pIdx, 1);
+  function insertAfter(pIdx,bIdx){
+    pages[pIdx].splice(bIdx + 1, 0, {type:'paragraph', text:'نص جديد...'});
     renderSheet();
+  }
+  function editBlock(pIdx,bIdx){
+    const pageEl = document.querySelectorAll('.page')[pIdx];
+    if(!pageEl) return;
+    const blockEl = pageEl.querySelectorAll('.page-content .block')[bIdx];
+    if(!blockEl) return;
+    const target = blockEl.querySelector('[contenteditable="true"]');
+    if(!target) return;
+    target.focus();
+    try{
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      const sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(range);
+    }catch(e){}
+    blockEl.scrollIntoView({behavior:'smooth', block:'center'});
   }
 
   function editable(el, onInput){
@@ -633,20 +795,14 @@
     return el;
   }
 
-  // ---------- fit each page onto exactly one A4 sheet ----------
-  // Fitting works by shrinking .page-content's real font-size (a plain
-  // inline px value) rather than a CSS transform/zoom trick. Every block's
-  // font-size, margin and padding is defined in em against that base (see
-  // CSS above), so reducing it reflows text AND spacing together — the
-  // same box model in the browser, in print, and inside Word, which does
-  // not reliably support "transform" or "zoom".
-  const BASE_FONT_PX = 12.5;
-  const MIN_FONT_PX = 8.5;
-  /* أقصى حجم عند تكبير المحتوى القصير ليملأ الصفحة بشكل أنيق وواضح دون مبالغة */
-  const MAX_FONT_PX = 16.5;
-  /* إن كانت الصفحة ممتلئة فعلاً (نصها يصل لهذا الحد فأكثر من المساحة المتاحة)
-     يبقى الخط بحجمه الطبيعي ولا يُكبَّر */
-  const FULLNESS_TO_GROW = 0.72;
+  // ---------- fit each page onto exactly one sheet ----------
+  // Fitting adjusts .page-content's real font-size (plain inline px): every
+  // block's size/margin/padding is in em against that base, so text AND
+  // spacing reflow together — honored by browser, print AND Word alike.
+  // autoFit: shrink when overflowing, and GROW (up to 1.45x) when the page
+  // is under-filled so every image's content fills its single page.
+  const MIN_FONT_PX = 8;
+  const GROW_CAP = 1.45;
   let fitTimer = null;
   function scheduleFit(){
     clearTimeout(fitTimer);
@@ -664,45 +820,33 @@
   function fitPageContent(pageEl){
     const content = pageEl.querySelector('.page-content');
     if(!content) return;
-    content.style.fontSize = BASE_FONT_PX + 'px';
+    const base = settings.baseFont;
+    content.style.fontSize = base + 'px';
     const available = availableHeight(pageEl);
     let natural = content.scrollHeight;
-    if(available <= 0) return; // لا مساحة قابلة للقياس بعد
-    if(natural <= available){
-      // الصفحة غير ممتلئة: كبّر الخط تدريجياً حتى يملأ المحتوى الصفحة الوحيدة
-      // بشكل واضح وأنيق، مع سقف أعلى حتى لا يبدو النص مبالغاً فيه.
-      if(natural >= available * FULLNESS_TO_GROW) return; // ممتلئة بما يكفي بالحجم الطبيعي
-      let lo = BASE_FONT_PX, hi = MAX_FONT_PX, best = BASE_FONT_PX;
-      for(let i = 0; i < 12; i++){
-        const mid = (lo + hi) / 2;
-        content.style.fontSize = mid + 'px';
-        if(content.scrollHeight <= available){
-          best = mid; lo = mid;
-        } else {
-          hi = mid;
-        }
-      }
-      content.style.fontSize = best + 'px';
-      return;
+    if(available <= 0) return;
+    if(!settings.autoFit){
+      return; // user controls the size manually; overflow moves blocks below
     }
-    // Binary-search the largest font-size (down to the readability floor)
-    // that makes the content fit the physical page height.
-    let lo = MIN_FONT_PX, hi = BASE_FONT_PX, best = MIN_FONT_PX;
+    let lo, hi, best;
+    if(natural > available){
+      // shrink until it fits the one page
+      lo = MIN_FONT_PX; hi = base; best = MIN_FONT_PX;
+    } else {
+      // grow until it fills the one page (bounded for readability)
+      lo = base; hi = base * GROW_CAP; best = base;
+    }
     for(let i = 0; i < 14; i++){
       const mid = (lo + hi) / 2;
       content.style.fontSize = mid + 'px';
-      if(content.scrollHeight <= available){
-        best = mid; lo = mid;
-      } else {
-        hi = mid;
-      }
+      if(content.scrollHeight <= available){ best = mid; lo = mid; }
+      else hi = mid;
     }
     content.style.fontSize = best + 'px';
   }
 
   // If a page still overflows even at the minimum readable font-size, move
-  // its last block onto the next page rather than letting `.page{overflow:
-  // hidden}` silently clip exam questions off the printed/exported sheet.
+  // its last block onto the next page rather than clipping it silently.
   function resolveOverflow(){
     let moved = false;
     for(let guard = 0; guard < 200; guard++){
@@ -732,7 +876,7 @@
   function showOverflowNotice(){
     const box = overflowNotice();
     if(!box) return;
-    box.textContent = 'تنبيه: محتوى إحدى الصفحات طويل جداً على أن يظهر كاملاً بخط مقروء ضمن صفحة A4 واحدة، فتم نقل الأسئلة الزائدة تلقائياً إلى صفحة جديدة بدل حذفها. راجع ترتيب الصفحات أدناه.';
+    box.textContent = 'تنبيه: محتوى إحدى الصفحات طويل جداً على أن يظهر كاملاً بخط مقروء ضمن صفحة واحدة، فتم نقل الأسئلة الزائدة تلقائياً إلى صفحة جديدة بدل حذفها. راجع ترتيب الصفحات أدناه.';
     box.style.display = 'block';
   }
   function hideOverflowNotice(){
@@ -909,34 +1053,34 @@
   // ---------- export: Word (.docx) ----------
   $('#btnExportWord').addEventListener('click', exportWord);
 
-  // مكتبة بناء ملفات Word تُحمَّل من ملف محلي مضمّن مع المشروع (docx.min.js)
-  // فتعمل حتى بلا إنترنت ولا تتعطل إذا تغيّرت روابط CDN — وهذا كان سبب عطل
-  // زر التصدير سابقاً (الرابط القديم على CDN لم يعد موجوداً ويعيد 404).
+  // Fixed: docx@9.3.0/build/index.js returns 404 (removed from CDN). The
+  // working UMD build lives at docx@8.5.0/build/index.umd.js — loaded with
+  // an ordered fallback chain so a single CDN outage never breaks export.
+  const DOCX_URLS = [
+    'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',
+    'https://unpkg.com/docx@8.5.0/build/index.umd.js'
+  ];
   let docxLibPromise = null;
   function loadDocxLib(){
     if(window.docx) return Promise.resolve(window.docx);
     if(docxLibPromise) return docxLibPromise;
-    docxLibPromise = new Promise((resolve, reject) => {
-      const existing = document.querySelector('script[data-docx-local]');
-      if(existing){
-        existing.addEventListener('load', () => window.docx ? resolve(window.docx) : reject(new Error('تعذّر تحميل مكتبة Word.')));
-        existing.addEventListener('error', () => reject(new Error('ملف مكتبة Word (docx.min.js) غير موجود بجانب الصفحة.')));
-        return;
+    docxLibPromise = (function tryNext(i){
+      if(i >= DOCX_URLS.length){
+        return Promise.reject(new Error('تعذّر تحميل مكتبة Word — تحقق من الاتصال بالإنترنت.'));
       }
-      const s = document.createElement('script');
-      s.src = './docx.min.js';
-      s.setAttribute('data-docx-local','1');
-      s.onload = () => window.docx ? resolve(window.docx) : reject(new Error('تعذّر تفعيل مكتبة Word.'));
-      s.onerror = () => reject(new Error('ملف مكتبة Word (docx.min.js) غير موجود بجانب الصفحة — أعد رفع المشروع كاملاً.'));
-      document.head.appendChild(s);
-    });
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = DOCX_URLS[i];
+        s.onload = () => window.docx ? resolve(window.docx) : tryNext(i+1).then(resolve, reject);
+        s.onerror = () => tryNext(i+1).then(resolve, reject);
+        document.head.appendChild(s);
+      });
+    })(0);
     return docxLibPromise;
   }
 
   const MM_TO_TWIP = 56.6929133858;
   const mmT = mm => Math.round(mm * MM_TO_TWIP);
-  const PAGE_W_MM = 210, PAGE_H_MM = 297, MARGIN_L_MM = 10, MARGIN_R_MM = 10, MARGIN_T_MM = 9, MARGIN_B_MM = 16;
-  const CONTENT_W_TWIP = mmT(PAGE_W_MM - MARGIN_L_MM - MARGIN_R_MM);
 
   async function exportWord(){
     const btn = $('#btnExportWord');
@@ -944,8 +1088,8 @@
     btn.disabled = true;
     btn.textContent = '⏳ يجهّز ملف Word…';
     try{
-      // Re-fit right before export so the exported file reflects the latest
-      // edits and the exact same per-page text size the user last saw.
+      // Re-fit right before export so the .docx carries the exact per-page
+      // text size the user last saw on screen.
       fitAllPages();
       resolveOverflow();
       const docx = await loadDocxLib();
@@ -969,27 +1113,30 @@
     }
   }
 
-  // Builds the .docx directly from the `pages` data model (not from the
-  // HTML), one Word Section per exam page so each starts on its own sheet
-  // automatically. Every block keeps the same per-page text size the fit
-  // routine already computed on screen — real font-size values, which
-  // Word (desktop and Android) always honors, unlike the old HTML export's
-  // CSS transform/zoom trick.
+  // Builds the .docx from the `pages` data model — one Word Section per exam
+  // page (each starts on its own sheet automatically), using the REAL page
+  // size/margins/font the user picked in the settings panel, and the exact
+  // per-page text size the fit routine computed. No zoom/transform tricks.
   async function buildDocxBlob(docx){
     const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
             AlignmentType, BorderStyle, WidthType, TabStopType, Footer } = docx;
+
+    const [PAGE_W_MM, PAGE_H_MM] = PAGE_DIMS[settings.pageSize] || PAGE_DIMS.a4;
+    const CONTENT_W_TWIP = mmT(PAGE_W_MM - settings.mL - settings.mR);
+    const wordFont = settings.wordFont || 'Arial';
 
     function readPageBasePt(pIdx){
       const pageEl = document.querySelectorAll('.page')[pIdx];
       const content = pageEl && pageEl.querySelector('.page-content');
       const px = content && parseFloat(content.style.fontSize);
-      return (px && px > 0 ? px : BASE_FONT_PX) * 0.75; // px -> pt at 96dpi
+      return (px && px > 0 ? px : settings.baseFont) * 0.75; // px -> pt at 96dpi
     }
     const hp = (basePt, em) => Math.max(12, Math.round(basePt * em * 2)); // -> half-points
+    const sp = (basePt, f) => Math.round(basePt * 20 * f * (settings.lineH / 1.55));
     const rtlOf = text => isArabic(text);
 
     function run(text, opts){
-      return new TextRun(Object.assign({ text: text || '', font: 'Arial' }, opts || {}));
+      return new TextRun(Object.assign({ text: text || '', font: wordFont }, opts || {}));
     }
     function para(children, opts){
       return new Paragraph(Object.assign({ children }, opts || {}));
@@ -1004,7 +1151,7 @@
             run('  ①', { bold: true, size: hp(basePt, 0.9), color: 'A3231F' })
           ], {
             alignment: AlignmentType.CENTER, bidirectional: rtlOf(b.text),
-            spacing: { after: Math.round(basePt * 20 * 0.8) },
+            spacing: { after: sp(basePt, 0.8) },
             border: {
               top: { style: BorderStyle.DOUBLE, size: 8, color: 'A3231F', space: 6 },
               bottom: { style: BorderStyle.DOUBLE, size: 8, color: 'A3231F', space: 6 },
@@ -1015,48 +1162,46 @@
         case 'section':
           return [para([run(b.text, { bold: true, size: hp(basePt, 1.15), color: 'A3231F' })], {
             alignment: align(b.text), bidirectional: rtlOf(b.text),
-            spacing: { before: Math.round(basePt * 20), after: Math.round(basePt * 10) },
+            spacing: { before: sp(basePt, 1), after: sp(basePt, 0.5) },
             border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: 'EADFC0', space: 2 } }
           })];
         case 'subhead':
           return [para([run(b.text, { bold: true, size: hp(basePt, 1.05), color: '1F5C99' })], {
             alignment: align(b.text), bidirectional: rtlOf(b.text),
-            spacing: { before: Math.round(basePt * 4), after: Math.round(basePt * 12) }
+            spacing: { before: sp(basePt, 0.2), after: sp(basePt, 0.6) }
           })];
         case 'paragraph':
           return [para([run(b.text, { size: hp(basePt, 1) })], {
             alignment: rtlOf(b.text) ? AlignmentType.RIGHT : AlignmentType.JUSTIFIED,
-            bidirectional: rtlOf(b.text), spacing: { before: Math.round(basePt * 8), after: Math.round(basePt * 8) }
+            bidirectional: rtlOf(b.text), spacing: { before: sp(basePt, 0.4), after: sp(basePt, 0.4) }
           })];
         case 'source':
           return [para([run(b.text, { bold: true, size: hp(basePt, 1.05) })], {
             alignment: align(b.text), bidirectional: rtlOf(b.text),
-            spacing: { before: Math.round(basePt * 6), after: Math.round(basePt * 16) }
+            spacing: { before: sp(basePt, 0.3), after: sp(basePt, 0.8) }
           })];
         case 'question': {
           const qtext = (b.num ? (b.num + '.  ') : '') + b.text;
           const rtl = rtlOf(qtext);
           const pts = b.points || '';
-          if(pts){
-            // تثبيت النقاط على حافة السطر البعيدة بعلامة جدولة — يعمل الآن
-            // للأسئلة العربية والفرنسية معاً، ويطابق تخطيط "النص … النقاط".
-            // في الفقرات ثنائية الاتجاه تحسب Word موضع الجدولة من الجهة
-            // اليسرى للسطر المنطقي، لذا نستخدم المحاذاة لليسار مع بقاء
-            // ترتيب الحروف العربية صحيحاً بفضل خاصية bidirectional.
+          if(!rtl && pts){
+            // French/Latin question: a right tab-stop pins the points to the
+            // page's far edge, matching the single-line original exactly.
             return [para([
               run(qtext, { size: hp(basePt, 1) }),
               run('\t' + pts, { bold: true, size: hp(basePt, 1) })
             ], {
-              alignment: AlignmentType.LEFT, bidirectional: rtl,
               tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_W_TWIP }],
-              spacing: { before: Math.round(basePt * 6), after: Math.round(basePt * 6) }
+              spacing: { before: sp(basePt, 0.3), after: sp(basePt, 0.3) }
             })];
           }
+          const sep = pts ? '     ' : '';
           return [para([
-            run(qtext, { size: hp(basePt, 1) })
+            run(qtext, { size: hp(basePt, 1) }),
+            run(sep + pts, { bold: true, size: hp(basePt, 1) })
           ], {
             alignment: align(qtext), bidirectional: rtl,
-            spacing: { before: Math.round(basePt * 6), after: Math.round(basePt * 6) }
+            spacing: { before: sp(basePt, 0.3), after: sp(basePt, 0.3) }
           })];
         }
         case 'options': {
@@ -1071,7 +1216,7 @@
           return [para(runs, {
             alignment: align(anyText), bidirectional: rtlOf(anyText),
             indent: { start: Math.round(CONTENT_W_TWIP * 0.08) },
-            spacing: { after: Math.round(basePt * 14) }
+            spacing: { after: sp(basePt, 0.7) }
           })];
         }
         case 'table': {
@@ -1079,6 +1224,7 @@
           const cellBorder = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
           const borders = { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder };
           const trs = rows.map(row => new TableRow({
+            cantSplit: true,
             children: [
               new TableCell({
                 width: { size: 8, type: WidthType.PERCENTAGE }, borders,
@@ -1090,22 +1236,18 @@
               })
             ]
           }));
-          // Note: Word lays table columns out left-to-right by array order
-          // regardless of paragraph direction; for the lettered
-          // ordering/matching tables in these exams that already matches
-          // the original (letter column first, text column after).
           return [new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: trs }),
-                  para([run('')], { spacing: { after: Math.round(basePt * 6) } })];
+                  para([run('')], { spacing: { after: sp(basePt, 0.3) } })];
         }
         case 'blank':
           return [para([run(b.text || '1-…………  2-…………  3-…………  4-…………', { size: hp(basePt, 1) })], {
-            alignment: AlignmentType.LEFT, bidirectional: false, spacing: { before: Math.round(basePt * 8), after: Math.round(basePt * 8) }
+            alignment: AlignmentType.LEFT, bidirectional: false, spacing: { before: sp(basePt, 0.4), after: sp(basePt, 0.4) }
           })];
         case 'closing':
           return [para([run(b.text || 'انتهت الأسئلة', { bold: true, size: hp(basePt, 1), color: 'A3231F' })], {
             alignment: AlignmentType.CENTER, bidirectional: rtlOf(b.text || 'انتهت الأسئلة'),
             border: { top: { style: BorderStyle.DASHED, size: 4, color: '000000', space: 8 } },
-            spacing: { before: Math.round(basePt * 20) }
+            spacing: { before: sp(basePt, 1) }
           })];
         default:
           return [];
@@ -1129,7 +1271,7 @@
         properties: {
           page: {
             size: { width: mmT(PAGE_W_MM), height: mmT(PAGE_H_MM) },
-            margin: { top: mmT(MARGIN_T_MM), bottom: mmT(MARGIN_B_MM), left: mmT(MARGIN_L_MM), right: mmT(MARGIN_R_MM), footer: mmT(6) }
+            margin: { top: mmT(settings.mT), bottom: mmT(settings.mB), left: mmT(settings.mL), right: mmT(settings.mR), footer: mmT(6) }
           }
         },
         footers: { default: footer },
@@ -1148,10 +1290,8 @@
     window.print();
   });
 
-  // Re-fit whenever something could change how much space the content
-  // needs: the window resizing/rotating on a phone, or the Cairo webfont
-  // finishing its load (its metrics differ from the fallback font used
-  // before it loads, which can shift how much text a line holds).
+  // Re-fit on viewport rotation/resize and once the Cairo webfont finishes
+  // loading (its metrics differ from the fallback used before it loads).
   window.addEventListener('resize', scheduleFit);
   window.addEventListener('orientationchange', scheduleFit);
   window.addEventListener('beforeprint', () => { fitAllPages(); resolveOverflow(); });
@@ -1159,6 +1299,7 @@
     document.fonts.ready.then(() => fitAllPages()).catch(() => {});
   }
 
+  applySettings();
 })();
 </script>
 </body>
