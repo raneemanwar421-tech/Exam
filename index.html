@@ -297,7 +297,7 @@
     <h2>٤. تحميل الملف النهائي</h2>
     <p class="hint">نزّل الصفحة كملف Word جاهز للتعديل في Word، أو اطبعها مباشرة كـ PDF من نافذة الطباعة.</p>
     <div class="export-row">
-      <button class="btn btn-primary" id="btnExportWord">⬇️ تحميل Word (.doc)</button>
+      <button class="btn btn-primary" id="btnExportWord">⬇️ تحميل Word (.docx)</button>
       <button class="btn btn-secondary" id="btnPrint">🖨️ طباعة / حفظ PDF</button>
     </div>
   </section>
@@ -833,66 +833,230 @@
     window.scrollTo({top:0, behavior:'smooth'});
   });
 
-  // ---------- export: Word ----------
+  // ---------- export: Word (.docx) ----------
   $('#btnExportWord').addEventListener('click', exportWord);
 
-  function exportWord(){
-    // Re-fit right before export so the exported file reflects the latest
-    // edits, then clone the rendered sheet so controls and editor-only
-    // markers never reach Word. Each .page-content already carries a real
-    // inline font-size (in px) from the fit routine above — that is a
-    // plain, universally-supported style, unlike the CSS transform/zoom
-    // trick this export used to rely on, which Word does not honor. No
-    // extra scaling step is needed here.
-    fitAllPages();
-    resolveOverflow();
-    const clone = $('#sheet').cloneNode(true);
-    clone.querySelectorAll('.controls, .page-break-marker').forEach(el => el.remove());
-    clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
-    const sheetHtml = clone.innerHTML;
-    // Mirrors the on-screen CSS, but with every size expressed as a fixed
-    // pt/px value instead of em/rem or CSS variables — Word's HTML importer
-    // (desktop and Android alike) supports plain font-size and padding
-    // values reliably, but not custom properties, "zoom" or "transform".
-    const styleForWord = `
-      @page{size:A4 portrait;margin:0;}
-      html,body{margin:0;padding:0;background:#fff;font-family:Arial,Tahoma,sans-serif;}
-      body{direction:rtl;}
-      .page{box-sizing:border-box;width:210mm;height:297mm;min-height:297mm;overflow:hidden;border:7px double #1f5c99;padding:9mm 10mm 20mm;margin:0;position:relative;page-break-after:always;break-after:page;page-break-inside:avoid;break-inside:avoid;line-height:1.55;direction:rtl;}
-      .page:last-child{page-break-after:auto;break-after:auto;}
-      .page-content{position:relative;z-index:1;}
-      .page-footer{position:absolute;left:10mm;right:10mm;bottom:6mm;text-align:center;font-weight:800;font-size:12px;color:#a3231f;border-top:1px dashed #c9a227;padding-top:5px;}
-      .title-box{border:3px double #a3231f;text-align:center;padding:.6em .8em;font-weight:800;font-size:1.4em;margin-bottom:1em;}
-      .title-box .badge{display:inline-block;width:1.4em;height:1.4em;border-radius:50%;background:#ffe066;font-size:.65em;font-weight:800;margin-inline-start:.5em;text-align:center;}
-      .block{break-inside:avoid;page-break-inside:avoid;margin:.4em 0;padding:.24em .32em;}
-      .b-section{color:#a3231f;font-weight:800;font-size:1.15em;margin:1em 0 .5em;}
-      .b-subhead{color:#1f5c99;font-weight:700;font-size:1.05em;margin:.2em 0 .6em;}
-      .b-paragraph{margin:.4em 0;}
-      .b-source{font-weight:700;font-size:1.05em;margin:.3em 0 .8em;}
-      .b-question{display:flex;justify-content:space-between;gap:.8em;margin:.3em 0;break-inside:avoid;page-break-inside:avoid;}
-      .b-options{display:flex;gap:1.4em;flex-wrap:wrap;padding-inline-start:2em;margin:.15em 0 .7em;break-inside:avoid;page-break-inside:avoid;}
-      .b-options .o0{color:#000;font-weight:700;} .b-options .o1{color:#1f5c99;font-weight:700;}
-      .b-options .o2{color:#1a7a3c;font-weight:700;} .b-options .o3{color:#8b2c6e;font-weight:700;}
-      table.b-table{width:100%;border-collapse:collapse;margin:.6em 0;break-inside:avoid;page-break-inside:avoid;}
-      table.b-table td{border:1px solid #000;padding:.4em .6em;font-size:1.05em;}
-      table.b-table td.letter{width:1.8em;font-weight:700;color:#1f5c99;}
-      .b-closing{text-align:center;border-top:1px dashed #000;padding-top:.6em;margin-top:1.1em;color:#a3231f;font-weight:700;}
-      .qpts{font-weight:700;white-space:nowrap;}
-    `;
-    const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-    <head><meta charset="utf-8"><title>ورقة الأسئلة</title>
-    <style>${styleForWord}</style></head>
-    <body dir="rtl">${sheetHtml}</body></html>`;
+  // Lazy-load the "docx" library (builds real OOXML .docx files) only when
+  // the user actually asks to export, so the app stays light otherwise.
+  let docxLibPromise = null;
+  function loadDocxLib(){
+    if(window.docx) return Promise.resolve(window.docx);
+    if(docxLibPromise) return docxLibPromise;
+    docxLibPromise = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/docx@9.3.0/build/index.js';
+      s.onload = () => window.docx ? resolve(window.docx) : reject(new Error('تعذّر تحميل مكتبة Word.'));
+      s.onerror = () => reject(new Error('تعذّر تحميل مكتبة Word — تحقق من الاتصال بالإنترنت.'));
+      document.head.appendChild(s);
+    });
+    return docxLibPromise;
+  }
 
-    const blob = new Blob(['\ufeff', html], {type:'application/msword;charset=utf-8'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'ورقة-الأسئلة.doc';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  const MM_TO_TWIP = 56.6929133858;
+  const mmT = mm => Math.round(mm * MM_TO_TWIP);
+  const PAGE_W_MM = 210, PAGE_H_MM = 297, MARGIN_L_MM = 10, MARGIN_R_MM = 10, MARGIN_T_MM = 9, MARGIN_B_MM = 16;
+  const CONTENT_W_TWIP = mmT(PAGE_W_MM - MARGIN_L_MM - MARGIN_R_MM);
+
+  async function exportWord(){
+    const btn = $('#btnExportWord');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ يجهّز ملف Word…';
+    try{
+      // Re-fit right before export so the exported file reflects the latest
+      // edits and the exact same per-page text size the user last saw.
+      fitAllPages();
+      resolveOverflow();
+      const docx = await loadDocxLib();
+      const blob = await buildDocxBlob(docx);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ورقة-الأسئلة.docx';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    }catch(err){
+      console.error(err);
+      const box = $('#errorBox');
+      box.style.display = 'block';
+      box.textContent = 'تعذّر إنشاء ملف Word. ' + (err && err.message ? err.message : 'تحقق من الاتصال بالإنترنت وأعد المحاولة.');
+    }finally{
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
+  // Builds the .docx directly from the `pages` data model (not from the
+  // HTML), one Word Section per exam page so each starts on its own sheet
+  // automatically. Every block keeps the same per-page text size the fit
+  // routine already computed on screen — real font-size values, which
+  // Word (desktop and Android) always honors, unlike the old HTML export's
+  // CSS transform/zoom trick.
+  async function buildDocxBlob(docx){
+    const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+            AlignmentType, BorderStyle, WidthType, TabStopType, Footer } = docx;
+
+    function readPageBasePt(pIdx){
+      const pageEl = document.querySelectorAll('.page')[pIdx];
+      const content = pageEl && pageEl.querySelector('.page-content');
+      const px = content && parseFloat(content.style.fontSize);
+      return (px && px > 0 ? px : BASE_FONT_PX) * 0.75; // px -> pt at 96dpi
+    }
+    const hp = (basePt, em) => Math.max(12, Math.round(basePt * em * 2)); // -> half-points
+    const rtlOf = text => isArabic(text);
+
+    function run(text, opts){
+      return new TextRun(Object.assign({ text: text || '', font: 'Arial' }, opts || {}));
+    }
+    function para(children, opts){
+      return new Paragraph(Object.assign({ children }, opts || {}));
+    }
+
+    function blockToNodes(b, basePt){
+      const align = t => rtlOf(t) ? AlignmentType.RIGHT : AlignmentType.LEFT;
+      switch(b.type){
+        case 'heading':
+          return [para([
+            run(b.text, { bold: true, size: hp(basePt, 1.4), color: 'A3231F' }),
+            run('  ①', { bold: true, size: hp(basePt, 0.9), color: 'A3231F' })
+          ], {
+            alignment: AlignmentType.CENTER, bidirectional: rtlOf(b.text),
+            spacing: { after: Math.round(basePt * 20 * 0.8) },
+            border: {
+              top: { style: BorderStyle.DOUBLE, size: 8, color: 'A3231F', space: 6 },
+              bottom: { style: BorderStyle.DOUBLE, size: 8, color: 'A3231F', space: 6 },
+              left: { style: BorderStyle.DOUBLE, size: 8, color: 'A3231F', space: 6 },
+              right: { style: BorderStyle.DOUBLE, size: 8, color: 'A3231F', space: 6 }
+            }
+          })];
+        case 'section':
+          return [para([run(b.text, { bold: true, size: hp(basePt, 1.15), color: 'A3231F' })], {
+            alignment: align(b.text), bidirectional: rtlOf(b.text),
+            spacing: { before: Math.round(basePt * 20), after: Math.round(basePt * 10) },
+            border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: 'EADFC0', space: 2 } }
+          })];
+        case 'subhead':
+          return [para([run(b.text, { bold: true, size: hp(basePt, 1.05), color: '1F5C99' })], {
+            alignment: align(b.text), bidirectional: rtlOf(b.text),
+            spacing: { before: Math.round(basePt * 4), after: Math.round(basePt * 12) }
+          })];
+        case 'paragraph':
+          return [para([run(b.text, { size: hp(basePt, 1) })], {
+            alignment: rtlOf(b.text) ? AlignmentType.RIGHT : AlignmentType.JUSTIFIED,
+            bidirectional: rtlOf(b.text), spacing: { before: Math.round(basePt * 8), after: Math.round(basePt * 8) }
+          })];
+        case 'source':
+          return [para([run(b.text, { bold: true, size: hp(basePt, 1.05) })], {
+            alignment: align(b.text), bidirectional: rtlOf(b.text),
+            spacing: { before: Math.round(basePt * 6), after: Math.round(basePt * 16) }
+          })];
+        case 'question': {
+          const qtext = (b.num ? (b.num + '.  ') : '') + b.text;
+          const rtl = rtlOf(qtext);
+          const pts = b.points || '';
+          if(!rtl && pts){
+            // Common case (French/Latin question text): a right tab-stop
+            // pins the points to the page's far edge, matching the
+            // original "text ... points" single-line layout exactly.
+            return [para([
+              run(qtext, { size: hp(basePt, 1) }),
+              run('\t' + pts, { bold: true, size: hp(basePt, 1) })
+            ], {
+              tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_W_TWIP }],
+              spacing: { before: Math.round(basePt * 6), after: Math.round(basePt * 6) }
+            })];
+          }
+          const sep = pts ? '     ' : '';
+          return [para([
+            run(qtext, { size: hp(basePt, 1) }),
+            run(sep + pts, { bold: true, size: hp(basePt, 1) })
+          ], {
+            alignment: align(qtext), bidirectional: rtl,
+            spacing: { before: Math.round(basePt * 6), after: Math.round(basePt * 6) }
+          })];
+        }
+        case 'options': {
+          const opts = (b.opts && b.opts.length) ? b.opts : ['a. ...','b. ...','c. ...','d. ...'];
+          const colors = ['000000', '1F5C99', '1A7A3C', '8B2C6E'];
+          const anyText = opts.join(' ');
+          const runs = [];
+          opts.slice(0,4).forEach((opt, idx) => {
+            if(idx > 0) runs.push(run('      '));
+            runs.push(run(opt, { bold: true, size: hp(basePt, 1), color: colors[idx] || '000000' }));
+          });
+          return [para(runs, {
+            alignment: align(anyText), bidirectional: rtlOf(anyText),
+            indent: { start: Math.round(CONTENT_W_TWIP * 0.08) },
+            spacing: { after: Math.round(basePt * 14) }
+          })];
+        }
+        case 'table': {
+          const rows = (b.rows && b.rows.length) ? b.rows : [['a','']];
+          const cellBorder = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
+          const borders = { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder };
+          const trs = rows.map(row => new TableRow({
+            children: [
+              new TableCell({
+                width: { size: 8, type: WidthType.PERCENTAGE }, borders,
+                children: [para([run(row[0] || '', { bold: true, size: hp(basePt, 1.05), color: '1F5C99' })], { alignment: AlignmentType.CENTER })]
+              }),
+              new TableCell({
+                width: { size: 92, type: WidthType.PERCENTAGE }, borders,
+                children: [para([run(row[1] || '', { size: hp(basePt, 1.05) })], { alignment: align(row[1] || ''), bidirectional: rtlOf(row[1] || '') })]
+              })
+            ]
+          }));
+          // Note: Word lays table columns out left-to-right by array order
+          // regardless of paragraph direction; for the lettered
+          // ordering/matching tables in these exams that already matches
+          // the original (letter column first, text column after).
+          return [new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: trs }),
+                  para([run('')], { spacing: { after: Math.round(basePt * 6) } })];
+        }
+        case 'blank':
+          return [para([run(b.text || '1-…………  2-…………  3-…………  4-…………', { size: hp(basePt, 1) })], {
+            alignment: AlignmentType.LEFT, bidirectional: false, spacing: { before: Math.round(basePt * 8), after: Math.round(basePt * 8) }
+          })];
+        case 'closing':
+          return [para([run(b.text || 'انتهت الأسئلة', { bold: true, size: hp(basePt, 1), color: 'A3231F' })], {
+            alignment: AlignmentType.CENTER, bidirectional: rtlOf(b.text || 'انتهت الأسئلة'),
+            border: { top: { style: BorderStyle.DASHED, size: 4, color: '000000', space: 8 } },
+            spacing: { before: Math.round(basePt * 20) }
+          })];
+        default:
+          return [];
+      }
+    }
+
+    const sections = pages.map((blocks, pIdx) => {
+      const basePt = readPageBasePt(pIdx);
+      const children = [];
+      (blocks.length ? blocks : []).forEach(b => { blockToNodes(b, basePt).forEach(n => children.push(n)); });
+      if(children.length === 0){
+        children.push(para([run('')]));
+      }
+      const footer = new Footer({
+        children: [ para([run(footerName, { bold: true, size: 24, color: 'A3231F' })], {
+          alignment: AlignmentType.CENTER,
+          border: { top: { style: BorderStyle.DASHED, size: 4, color: 'C9A227', space: 4 } }
+        })]
+      });
+      return {
+        properties: {
+          page: {
+            size: { width: mmT(PAGE_W_MM), height: mmT(PAGE_H_MM) },
+            margin: { top: mmT(MARGIN_T_MM), bottom: mmT(MARGIN_B_MM), left: mmT(MARGIN_L_MM), right: mmT(MARGIN_R_MM), footer: mmT(6) }
+          }
+        },
+        footers: { default: footer },
+        children
+      };
+    });
+
+    const doc = new Document({ sections });
+    return Packer.toBlob(doc);
   }
 
   // ---------- export: print/PDF ----------
