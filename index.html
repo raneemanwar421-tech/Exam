@@ -154,15 +154,21 @@
     font-size:.65em; font-weight:800; margin-inline-start:.5em; border:1px solid #d8b800;
   }
   .block{position:relative; margin:.4em 0; padding:.24em .32em; border-radius:6px;}
-  .block:hover{outline:1px dashed #c9d3e0;}
+  .block:hover, .block:focus-within{outline:1px dashed #c9d3e0;}
   .block .controls{
     position:absolute; inset-inline-end:-4px; top:-4px; display:none; gap:3px; z-index:5;
   }
-  .block:hover .controls{display:flex;}
-  .ctrl-btn{
-    width:22px;height:22px; border:none; border-radius:5px; background:#1b2430; color:#fff;
-    font-size:.72rem; cursor:pointer; line-height:1; display:flex; align-items:center; justify-content:center;
+  .block:hover .controls, .block:focus-within .controls{display:flex;}
+  @media (hover:none), (max-width:720px){
+    /* على شاشات اللمس لا توجد حالة تمرير بالفأرة، فتبقى أزرار التعديل والإزالة ظاهرة دائماً */
+    .block .controls{display:flex;}
+    .block{outline:1px dashed #e2e8f0;}
   }
+  .ctrl-btn{
+    width:24px;height:24px; border:none; border-radius:5px; background:#1b2430; color:#fff;
+    font-size:.75rem; cursor:pointer; line-height:1; display:flex; align-items:center; justify-content:center;
+  }
+  .ctrl-btn.edit{background:var(--accent-2);}
   .ctrl-btn.del{background:var(--accent);}
 
   .b-section{ color:var(--accent); font-weight:800; font-size:1.15em; margin:1em 0 .5em; outline:none; border-bottom:1px solid #eadfc0; padding-bottom:.25em;}
@@ -189,9 +195,16 @@
   .b-blank{ margin:.6em 0; font-size:1em; outline:none;}
 
   .page-break-marker{
-    text-align:center; color:#9aa4b2; font-size:.75rem; margin:14px 0;
-    border-top:1px dashed #c9d3e0; padding-top:6px;
+    display:flex; align-items:center; justify-content:center; gap:12px;
+    color:#9aa4b2; font-size:.75rem; margin:14px 0;
+    border-top:1px dashed #c9d3e0; padding-top:10px;
   }
+  .page-del{
+    appearance:none; border:1px solid #f3c6c2; background:#fdeceb; color:var(--accent);
+    border-radius:999px; padding:4px 14px; font-size:.75rem; font-weight:700; cursor:pointer;
+    font-family:inherit;
+  }
+  .page-del:hover{background:#f9d7d4;}
 
   [contenteditable="true"]:focus{ background:#fff8dc; outline:1px solid #f1cf5b; }
 
@@ -206,7 +219,7 @@
 
   @media print{
     header.app, .steps, .toolbar, .export-row, .no-print, .zoom-hint, #panelCapture, #panelExport,
-    .panel h2, .panel .hint{display:none !important;}
+    .panel h2, .panel .hint, .page-break-marker{display:none !important;}
     .panel:not(.print-target){display:none !important;}
     body{background:#fff;}
     .wrap{margin:0; padding:0; max-width:none;}
@@ -237,6 +250,10 @@
     <div class="step-pill" id="pill-3"><b>3</b> المراجعة والتعديل</div>
     <div class="step-pill" id="pill-4"><b>4</b> تحميل الملف</div>
   </div>
+
+  <!-- مكتبة بناء ملفات Word (.docx) — مضمّنة محلياً مع المشروع حتى يعمل التصدير دائماً، حتى بلا إنترنت -->
+  <!-- مكتبة بناء ملفات Word (.docx) — مضمّنة محلياً مع المشروع حتى يعمل التصدير دائماً، حتى بلا إنترنت -->
+  <script src="./docx.min.js" defer data-docx-local="1"></script>
 
   <!-- STEP 1: capture -->
   <section class="panel" id="panelCapture">
@@ -536,31 +553,56 @@
       pageEl.appendChild(footerEl);
 
       sheet.appendChild(pageEl);
-      if(pIdx < pages.length - 1){
-        const marker = document.createElement('div');
-        marker.className = 'page-break-marker';
-        marker.textContent = '↓ صفحة جديدة ↓';
-        sheet.appendChild(marker);
-      }
+      const marker = document.createElement('div');
+      marker.className = 'page-break-marker no-print';
+      const lbl = document.createElement('span');
+      lbl.textContent = '— صفحة ' + (pIdx + 1) + ' من ' + pages.length + ' —';
+      const delBtn = document.createElement('button');
+      delBtn.className = 'page-del';
+      delBtn.type = 'button';
+      delBtn.textContent = '🗑️ إزالة هذه الصفحة';
+      delBtn.addEventListener('click', () => deletePage(pIdx));
+      marker.append(lbl, delBtn);
+      sheet.appendChild(marker);
     });
   }
 
   function controls(pIdx, bIdx){
     const wrap = document.createElement('div');
     wrap.className = 'controls no-print';
-    const up = ctrlBtn('▲', () => moveBlock(pIdx,bIdx,-1));
-    const down = ctrlBtn('▼', () => moveBlock(pIdx,bIdx,1));
-    const del = ctrlBtn('✕', () => deleteBlock(pIdx,bIdx));
+    const up = ctrlBtn('▲', 'نقل لأعلى', () => moveBlock(pIdx,bIdx,-1));
+    const down = ctrlBtn('▼', 'نقل لأسفل', () => moveBlock(pIdx,bIdx,1));
+    const edit = ctrlBtn('✎', 'تعديل النص', () => editBlock(pIdx,bIdx));
+    edit.classList.add('edit');
+    const del = ctrlBtn('✕', 'إزالة العنصر', () => deleteBlock(pIdx,bIdx));
     del.classList.add('del');
-    wrap.append(up, down, del);
+    wrap.append(up, down, edit, del);
     return wrap;
   }
-  function ctrlBtn(txt, fn){
+  function ctrlBtn(txt, label, fn){
     const b = document.createElement('button');
     b.className = 'ctrl-btn';
     b.textContent = txt;
+    b.title = label;
+    b.setAttribute('aria-label', label);
     b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
     return b;
+  }
+  // زر التعديل: ينقل التركيز مباشرة إلى نص العنصر لبدء الكتابة، ويظهر لوحة المفاتيح على الجوال
+  function editBlock(pIdx, bIdx){
+    const pageEl = document.querySelectorAll('.page')[pIdx];
+    const blockEl = pageEl && pageEl.querySelectorAll('.block')[bIdx];
+    const target = blockEl && blockEl.querySelector('[contenteditable="true"]');
+    if(!target) return;
+    target.focus();
+    try{
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }catch(e){}
   }
   function moveBlock(pIdx,bIdx,dir){
     const arr = pages[pIdx];
@@ -571,6 +613,17 @@
   }
   function deleteBlock(pIdx,bIdx){
     pages[pIdx].splice(bIdx,1);
+    renderSheet();
+  }
+  // إزالة صفحة كاملة من الملف (مع تأكيد حتى لا تُفقد أسئلة بالخطأ)
+  function deletePage(pIdx){
+    if(pages.length <= 1){
+      pages[0] = [];
+      renderSheet();
+      return;
+    }
+    if(!window.confirm('حذف الصفحة ' + (pIdx + 1) + ' بكل محتواها؟')) return;
+    pages.splice(pIdx, 1);
     renderSheet();
   }
 
@@ -589,6 +642,11 @@
   // not reliably support "transform" or "zoom".
   const BASE_FONT_PX = 12.5;
   const MIN_FONT_PX = 8.5;
+  /* أقصى حجم عند تكبير المحتوى القصير ليملأ الصفحة بشكل أنيق وواضح دون مبالغة */
+  const MAX_FONT_PX = 16.5;
+  /* إن كانت الصفحة ممتلئة فعلاً (نصها يصل لهذا الحد فأكثر من المساحة المتاحة)
+     يبقى الخط بحجمه الطبيعي ولا يُكبَّر */
+  const FULLNESS_TO_GROW = 0.72;
   let fitTimer = null;
   function scheduleFit(){
     clearTimeout(fitTimer);
@@ -609,8 +667,23 @@
     content.style.fontSize = BASE_FONT_PX + 'px';
     const available = availableHeight(pageEl);
     let natural = content.scrollHeight;
-    if(natural <= available || available <= 0){
-      return; // fits at full size (or no footer yet to measure against)
+    if(available <= 0) return; // لا مساحة قابلة للقياس بعد
+    if(natural <= available){
+      // الصفحة غير ممتلئة: كبّر الخط تدريجياً حتى يملأ المحتوى الصفحة الوحيدة
+      // بشكل واضح وأنيق، مع سقف أعلى حتى لا يبدو النص مبالغاً فيه.
+      if(natural >= available * FULLNESS_TO_GROW) return; // ممتلئة بما يكفي بالحجم الطبيعي
+      let lo = BASE_FONT_PX, hi = MAX_FONT_PX, best = BASE_FONT_PX;
+      for(let i = 0; i < 12; i++){
+        const mid = (lo + hi) / 2;
+        content.style.fontSize = mid + 'px';
+        if(content.scrollHeight <= available){
+          best = mid; lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
+      content.style.fontSize = best + 'px';
+      return;
     }
     // Binary-search the largest font-size (down to the readability floor)
     // that makes the content fit the physical page height.
@@ -836,17 +909,25 @@
   // ---------- export: Word (.docx) ----------
   $('#btnExportWord').addEventListener('click', exportWord);
 
-  // Lazy-load the "docx" library (builds real OOXML .docx files) only when
-  // the user actually asks to export, so the app stays light otherwise.
+  // مكتبة بناء ملفات Word تُحمَّل من ملف محلي مضمّن مع المشروع (docx.min.js)
+  // فتعمل حتى بلا إنترنت ولا تتعطل إذا تغيّرت روابط CDN — وهذا كان سبب عطل
+  // زر التصدير سابقاً (الرابط القديم على CDN لم يعد موجوداً ويعيد 404).
   let docxLibPromise = null;
   function loadDocxLib(){
     if(window.docx) return Promise.resolve(window.docx);
     if(docxLibPromise) return docxLibPromise;
     docxLibPromise = new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[data-docx-local]');
+      if(existing){
+        existing.addEventListener('load', () => window.docx ? resolve(window.docx) : reject(new Error('تعذّر تحميل مكتبة Word.')));
+        existing.addEventListener('error', () => reject(new Error('ملف مكتبة Word (docx.min.js) غير موجود بجانب الصفحة.')));
+        return;
+      }
       const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/docx@9.3.0/build/index.js';
-      s.onload = () => window.docx ? resolve(window.docx) : reject(new Error('تعذّر تحميل مكتبة Word.'));
-      s.onerror = () => reject(new Error('تعذّر تحميل مكتبة Word — تحقق من الاتصال بالإنترنت.'));
+      s.src = './docx.min.js';
+      s.setAttribute('data-docx-local','1');
+      s.onload = () => window.docx ? resolve(window.docx) : reject(new Error('تعذّر تفعيل مكتبة Word.'));
+      s.onerror = () => reject(new Error('ملف مكتبة Word (docx.min.js) غير موجود بجانب الصفحة — أعد رفع المشروع كاملاً.'));
       document.head.appendChild(s);
     });
     return docxLibPromise;
@@ -956,22 +1037,23 @@
           const qtext = (b.num ? (b.num + '.  ') : '') + b.text;
           const rtl = rtlOf(qtext);
           const pts = b.points || '';
-          if(!rtl && pts){
-            // Common case (French/Latin question text): a right tab-stop
-            // pins the points to the page's far edge, matching the
-            // original "text ... points" single-line layout exactly.
+          if(pts){
+            // تثبيت النقاط على حافة السطر البعيدة بعلامة جدولة — يعمل الآن
+            // للأسئلة العربية والفرنسية معاً، ويطابق تخطيط "النص … النقاط".
+            // في الفقرات ثنائية الاتجاه تحسب Word موضع الجدولة من الجهة
+            // اليسرى للسطر المنطقي، لذا نستخدم المحاذاة لليسار مع بقاء
+            // ترتيب الحروف العربية صحيحاً بفضل خاصية bidirectional.
             return [para([
               run(qtext, { size: hp(basePt, 1) }),
               run('\t' + pts, { bold: true, size: hp(basePt, 1) })
             ], {
+              alignment: AlignmentType.LEFT, bidirectional: rtl,
               tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_W_TWIP }],
               spacing: { before: Math.round(basePt * 6), after: Math.round(basePt * 6) }
             })];
           }
-          const sep = pts ? '     ' : '';
           return [para([
-            run(qtext, { size: hp(basePt, 1) }),
-            run(sep + pts, { bold: true, size: hp(basePt, 1) })
+            run(qtext, { size: hp(basePt, 1) })
           ], {
             alignment: align(qtext), bidirectional: rtl,
             spacing: { before: Math.round(basePt * 6), after: Math.round(basePt * 6) }
